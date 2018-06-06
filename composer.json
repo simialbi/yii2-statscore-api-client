@@ -1,0 +1,52 @@
+{
+	"name": "yii2-statscore-api-client",
+	"description": "yii2 statscore sports api client component",
+	"keywords": [
+		"yii2",
+		"statscore",
+		"statscore api",
+		"sports api",
+		"api"
+	],
+	"type": "yii2-extension",
+	"license": "MIT",
+	"support": {
+		"issues": "https://github.com/simialbi/yii2-statscore-api-client/issues",
+		"source": "https://github.com/simialbi/yii2-statscore-api-client"
+	},
+	"authors": [
+		{
+			"name": "Simon Karlen",
+			"email": "simi.albi@gmail.com"
+		}
+	],
+	"minimum-stability": "stable",
+	"repositories": [
+		{
+			"type": "composer",
+			"url": "https://asset-packagist.org"
+		}
+	],
+	"require": {
+		"yiisoft/yii2": "~2.0",
+		"yiisoft/yii2-httpclient": "~2.0",
+		"simialbi/yii2-simialbi-base": "*"
+	},
+	"require-dev": {
+		"yiisoft/yii2-coding-standards": "~2.0",
+		"phpunit/phpunit": "*"
+	},
+	"config": {
+		"process-timeout": 1800
+	},
+	"autoload": {
+		"psr-4": {
+			"simialbi\\yii2\\statscore\\": "src"
+		}
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"yiiunit\\extensions\\statscore\\": "tests"
+		}
+	}
+}
