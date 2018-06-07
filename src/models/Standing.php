@@ -67,6 +67,11 @@ class Standing extends Model
     public $ut;
 
     /**
+     * @var Group[]
+     */
+    public $groups = [];
+
+    /**
      * {@inheritdoc}
      */
     public function rules()
@@ -84,7 +89,9 @@ class Standing extends Model
             ['object_name', 'string'],
             ['item_status', 'in', 'range' => ['active', 'deleted']],
             ['reset_group_rank', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
-            ['ut', 'integer']
+            ['ut', 'integer'],
+
+            [['groups'], 'safe']
         ];
     }
 }

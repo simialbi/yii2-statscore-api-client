@@ -34,6 +34,11 @@ class Season extends Model
     public $old_season_id;
 
     /**
+     * @var Stage[]
+     */
+    public $stages = [];
+
+    /**
      * {@inheritdoc}
      */
     public function rules()
@@ -43,7 +48,9 @@ class Season extends Model
             ['name', 'string'],
             ['year', 'string'],
             ['ut', 'integer'],
-            ['old_season_id', 'integer']
+            ['old_season_id', 'integer'],
+
+            [['stages'], 'safe']
         ];
     }
 }

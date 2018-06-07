@@ -25,6 +25,23 @@ class Group extends Model
     public $ut;
 
     /**
+     * @var Event[]
+     */
+    public $events = [];
+    /**
+     * @var Participant[]
+     */
+    public $participants = [];
+    /**
+     * @var Correction[]
+     */
+    public $corrections = [];
+    /**
+     * @var Zone[]
+     */
+    public $zones = [];
+
+    /**
      * {@inheritdoc}
      */
     public function rules()
@@ -32,7 +49,9 @@ class Group extends Model
         return [
             ['id', 'integer'],
             ['name', 'string'],
-            ['ut', 'integer']
+            ['ut', 'integer'],
+
+            [['events', 'participants', 'corrections', 'zones'], 'safe']
         ];
     }
 }

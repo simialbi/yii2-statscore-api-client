@@ -9,24 +9,25 @@ namespace simialbi\yii2\statscore\models;
 
 use yii\base\Model;
 
-class Detail extends Model
+class StandingType extends Model
 {
     /**
-     * @var integer Unique identifier for the detail
+     * @var integer Unique identifier for the standings type
      */
     public $id;
     /**
-     * @var string Name of the detail. Possible values are different depending on the sport
+     * @var string Name of the standing type
      */
     public $name;
     /**
-     * @var string Description of the venue detail
+     * @var integer Information about the date and time of when the record was last updated. Format UNIX_TIMESTAMP
      */
-    public $description;
+    public $ut;
+
     /**
-     * @var mixed Value related to the detail
+     * @var Column[]
      */
-    public $value;
+    public $columns = [];
 
     /**
      * {@inheritdoc}
@@ -36,8 +37,9 @@ class Detail extends Model
         return [
             ['id', 'integer'],
             ['name', 'string'],
-            ['description', 'string'],
-            ['value', 'safe']
+            ['ut', 'integer'],
+
+            [['columns'], 'safe']
         ];
     }
 }

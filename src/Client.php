@@ -7,8 +7,29 @@
 namespace simialbi\yii2\statscore;
 
 use simialbi\yii2\statscore\models\Area;
+use simialbi\yii2\statscore\models\Column;
 use simialbi\yii2\statscore\models\Competition;
+use simialbi\yii2\statscore\models\Correction;
+use simialbi\yii2\statscore\models\Detail;
+use simialbi\yii2\statscore\models\Event;
+use simialbi\yii2\statscore\models\Group;
+use simialbi\yii2\statscore\models\Incident;
+use simialbi\yii2\statscore\models\Lineup;
+use simialbi\yii2\statscore\models\Participant;
+use simialbi\yii2\statscore\models\participant\Detail as ParticipantDetail;
+use simialbi\yii2\statscore\models\Result;
+use simialbi\yii2\statscore\models\Round;
 use simialbi\yii2\statscore\models\Season;
+use simialbi\yii2\statscore\models\Sport;
+use simialbi\yii2\statscore\models\sport\Detail as SportDetail;
+use simialbi\yii2\statscore\models\sport\Incident as SportIncident;
+use simialbi\yii2\statscore\models\Stage;
+use simialbi\yii2\statscore\models\Standing;
+use simialbi\yii2\statscore\models\StandingType;
+use simialbi\yii2\statscore\models\Stat;
+use simialbi\yii2\statscore\models\Status;
+use simialbi\yii2\statscore\models\Tour;
+use simialbi\yii2\statscore\models\Zone;
 use Yii;
 use yii\base\Component;
 use yii\base\InvalidConfigException;
@@ -152,62 +173,13 @@ class Client extends Component
     /**
      * Returns a list of all available competitions
      *
-     * @param null|string $area_type Determines type of area in which competitions are played.
-     * @param null|string $type Determines type competition.
-     * @param null|integer|integer $area_id Determines the area in which competition are played.
-     * @param null|integer $sport_id Determines the sport identificator in which the competitions are played.
-     * @param null|integer $tour_id Determines the tour identificator in which the competitions are played.
-     * @param null|array|string $multi_ids List of competition identifiers.
-     * @param null|string $gender Determines competition gender. Allows selection of e.g. only
-     * WTA Womens Competitions in Tennis.
-     * @param null|string|integer $timestamp Selection date, format UNIX_TIMESTAMP. Only changes in competitions
-     * that occurred or were updated after this timestamp will be returned
-     * @param null|string $short_name Determines competition short_name. The attribute must have minimum 3 characters.
-     * @param null|string $short_type Determines sort type for competitions (internal usage only)
-     * @param null|string|integer $date_from Selection datetime
-     * @param null|string|integer $date_to Selection datetime
-     * @param null|string $status_type Return only competition with event status
-     * live,finished,scheduled,other,cancelled,interrupted,deleted.
-     * @param null|string $tz Custom timezone for data_from and date_to.
+     * @param array $requestData additional query data filters
      * @return Competition[]
      * @throws HttpException
-     * @throws InvalidConfigException
      */
-    public function getCompetitions(
-        $area_type = null,
-        $type = null,
-        $area_id = null,
-        $sport_id = null,
-        $tour_id = null,
-        $multi_ids = null,
-        $gender = null,
-        $timestamp = null,
-        $short_name = null,
-        $short_type = null,
-        $date_from = null,
-        $date_to = null,
-        $status_type = null,
-        $tz = null
-    ) {
-        if (is_array($multi_ids)) {
-            $multi_ids = implode(',', $multi_ids);
-        }
-        $data = $this->request('competitions', [
-            'area_type' => $area_type,
-            'type' => $type,
-            'area_id' => $area_id,
-            'sport_id' => $sport_id,
-            'tour_id' => $tour_id,
-            'multi_ids' => $multi_ids,
-            'gender' => $gender,
-            'timestamp' => $timestamp,
-            'short_name' => $short_name,
-            'short_type' => $short_type,
-            'date_from' => Yii::$app->formatter->asDatetime($date_from, 'yyyy-MM-dd HH:mm:ss'),
-            'date_to' => Yii::$app->formatter->asDatetime($date_to, 'yyyy-MM-dd HH:mm:ss'),
-            'status_type' => $status_type,
-            'tz' => $tz
-        ]);
+    public function getCompetitions(array $requestData = [])
+    {
+        $data = $this->request('competitions', $requestData);
 
         $competitions = [];
         foreach (ArrayHelper::getValue($data, 'competitions', []) as $competition) {
@@ -228,16 +200,459 @@ class Client extends Component
      */
     public function getCompetition($competition_id)
     {
-        $data = $this->request('competitions/'.$competition_id);
+        $data = $this->request('competitions/' . $competition_id);
 
         $competition = new Competition(ArrayHelper::getValue($data, 'competition'));
-        $competition->seasons = [];
         $seasons = ArrayHelper::getValue($data, 'competition.seasons', []);
         foreach ($seasons as $season) {
             $competition->seasons[] = new Season($season);
         }
 
         return $competition;
+    }
+
+    /**
+     * Returns a single event with details including participants, partial results, stats, lineups and important
+     * incidents for the event
+     *
+     * @param array $requestData additional query data filters
+     * @return Competition[]
+     * @throws HttpException
+     */
+    public function getEvents(array $requestData = [])
+    {
+        $data = $this->request('events', $requestData);
+
+        $competitions = [];
+        foreach (ArrayHelper::getValue($data, 'competitions', []) as $c) {
+            $competition = $this->buildCompetition($c);
+            $competitions[] = $competition;
+        }
+
+        return $competitions;
+    }
+
+    /**
+     * Returns a single event with details including participants, partial results, stats,
+     * lineups and important incidents for the event
+     *
+     * @param integer $event_id The requested event identifier
+     * @return Competition
+     * @throws HttpException
+     */
+    public function getEvent($event_id)
+    {
+        $data = $this->request('events/' . $event_id);
+
+        $competition = $this->buildCompetition(ArrayHelper::getValue($data, 'competition'));
+
+        return $competition;
+    }
+
+    /**
+     * Returns a list of all available groups that played in the selected stage
+     *
+     * @param integer $stage_id Identifier of the stage related to the group.
+     * @param array $requestData additional query data filters
+     * @return Competition
+     * @throws HttpException
+     */
+    public function getGroups($stage_id, array $requestData = [])
+    {
+        $requestData['stage_id'] = $stage_id;
+        $data = $this->request('groups', $requestData);
+
+        $competition = $this->buildCompetition(ArrayHelper::getValue($data, 'competition'));
+
+        return $competition;
+    }
+
+    /**
+     * Returns incidents, which may occur during the event (list of available incidents)
+     *
+     * @param array $requestData additional query data filters
+     * @return Incident[]
+     * @throws HttpException
+     */
+    public function getIncidents(array $requestData = [])
+    {
+        $data = $this->request('incidents', $requestData);
+
+        $incidents = [];
+        foreach (ArrayHelper::getValue($data, 'incidents', []) as $i) {
+            $incident = new Incident($i);
+            $incidents[] = $incident;
+        }
+
+        return $incidents;
+    }
+
+    /**
+     * Returns LIVE events related to competitions, seasons, stages and groups
+     *
+     * @param array $requestData additional query data filters
+     * @return array
+     * @throws HttpException
+     */
+    public function getLiveScore(array $requestData = [])
+    {
+        $data = $this->request('livescore', $requestData);
+
+        $competitions = [];
+        foreach (ArrayHelper::getValue($data, 'competitions', []) as $c) {
+            $competition = $this->buildCompetition($c);
+            $competitions[] = $competition;
+        }
+
+        return $competitions;
+    }
+
+    /**
+     * Returns a list of all available participants (teams or persons) for all sports
+     *
+     * @param integer $sport_id Identifier for the sport. Allows you to filter participants for the selected sport.
+     * @param array $requestData additional query data filters
+     * @return Participant[]
+     * @throws HttpException
+     */
+    public function getParticipants($sport_id, array $requestData = [])
+    {
+        $requestData['sport_id'] = $sport_id;
+        $data = $this->request('participants', $requestData);
+
+        $participants = [];
+        foreach (ArrayHelper::getValue($data, 'participants', []) as $p) {
+            $details = ArrayHelper::remove($p, 'details', []);
+
+            $participant = new Participant($p);
+
+            foreach ($details as $d) {
+                $detail = new ParticipantDetail($d);
+
+                $participant->details[] = $detail;
+            }
+
+            $participants[] = $participant;
+        }
+
+        return $participants;
+    }
+
+    /**
+     * Returns a list of personnel related to selected team
+     *
+     * @param integer $participant_id The requested participant (team) identifier
+     * @param array $requestData additional query data filters
+     * @return Participant[]
+     * @throws HttpException
+     */
+    public function getParticipantsSquad($participant_id, array $requestData = [])
+    {
+        $data = $this->request('participants/' . $participant_id . '/squad', $requestData);
+
+        $participants = [];
+        foreach (ArrayHelper::getValue($data, 'participants', []) as $p) {
+            $details = ArrayHelper::remove($p, 'details', []);
+
+            $participant = new Participant($p);
+
+            foreach ($details as $d) {
+                $detail = new ParticipantDetail($d);
+
+                $participant->details[] = $detail;
+            }
+
+            $participants[] = $participant;
+        }
+
+        return $participants;
+    }
+
+    /**
+     * Returns a list of all available rounds which could be related to the event f.e Round 1, Quarterfinals etc.
+     *
+     * @param array $requestData additional query data filters
+     * @return Round[]
+     * @throws HttpException
+     */
+    public function getRounds(array $requestData = [])
+    {
+        $data = $this->request('rounds', $requestData);
+
+        $rounds = [];
+        foreach (ArrayHelper::getValue($data, 'rounds', []) as $r) {
+            $round = new Round($r);
+
+            $rounds[] = $round;
+        }
+
+        return $rounds;
+    }
+
+    /**
+     * Returns a list of all available seasons played in the competitions
+     *
+     * @param array $requestData additional query data filters
+     * @return Competition[]
+     * @throws HttpException
+     */
+    public function getSeasons(array $requestData = [])
+    {
+        $data = $this->request('seasons', $requestData);
+
+        $competitions = [];
+        foreach (ArrayHelper::getValue($data, 'competitions', []) as $c) {
+            $competition = $this->buildCompetition($c);
+            $competitions[] = $competition;
+        }
+
+        return $competitions;
+    }
+
+    /**
+     * Returns the seasons played in the competitions
+     *
+     * @param integer $season_id The requested season identifier
+     * @param array $requestData additional query data filters
+     * @return Competition
+     * @throws HttpException
+     */
+    public function getSeason($season_id, array $requestData = [])
+    {
+        $data = $this->request('seasons/' . $season_id, $requestData);
+
+        $competition = $this->buildCompetition(ArrayHelper::getValue($data, 'competition', []));
+
+        return $competition;
+    }
+
+    /**
+     * Returns a list of all available sports
+     *
+     * @param array $requestData additional query data filters
+     * @return Sport[]
+     * @throws HttpException
+     */
+    public function getSports(array $requestData = [])
+    {
+        $data = $this->request('sports', $requestData);
+
+        $sports = [];
+        foreach (ArrayHelper::getValue($data, 'sports', []) as $s) {
+            $sport = new Sport($s);
+
+            $sports[] = $sport;
+        }
+
+        return $sports;
+    }
+
+    /**
+     * Returns information including statuses, result types, details and statistics available for the requested sport
+     *
+     * @param integer $sport_id The requested sport identifier
+     * @param array $requestData additional query data filters
+     * @return Sport
+     * @throws HttpException
+     */
+    public function getSport($sport_id, array $requestData = [])
+    {
+        $data = $this->request('sports/' . $sport_id, $requestData);
+
+        $s = ArrayHelper::getValue($data, 'sport', []);
+        $statuses = ArrayHelper::remove($s, 'statuses', []);
+        $results = ArrayHelper::remove($s, 'results', []);
+        $stats = ArrayHelper::remove($s, 'stats', []);
+        $details = ArrayHelper::remove($s, 'details', []);
+        $incidents = ArrayHelper::remove($s, 'incidents', []);
+        $standingTypes = ArrayHelper::remove($s, 'standing_types', []);
+        $venuesDetails = ArrayHelper::remove($s, 'venues_details', []);
+        $sport = new Sport($s);
+
+        foreach ($statuses as $st) {
+            $status = new Status($st);
+
+            $sport->statuses[] = $status;
+        }
+        foreach ($results as $r) {
+            $result = new Result($r);
+
+            $sport->results[] = $result;
+        }
+        foreach (ArrayHelper::getValue($stats, 'team', []) as $teamStat) {
+            $stat = new Stat($teamStat);
+
+            $sport->stats[] = $stat;
+        }
+        foreach (ArrayHelper::getValue($stats, 'person', []) as $personStat) {
+            $stat = new Stat($personStat);
+
+            $sport->stats[] = $stat;
+        }
+        foreach ($details as $d) {
+            $detail = new SportDetail($d);
+
+            $sport->details[] = $detail;
+        }
+        foreach ($incidents as $i) {
+            $incident = new SportIncident($i);
+
+            $sport->incidents[] = $incident;
+        }
+        foreach ($standingTypes as $type) {
+            $columns = ArrayHelper::remove($type, 'columns', []);
+
+            $standingType = new StandingType($type);
+            foreach ($columns as $c) {
+                $column = new Column($c);
+
+                $standingType->columns[] = $column;
+            }
+
+            $sport->standing_types[] = $standingType;
+        }
+        foreach ($venuesDetails as $venuesDetail) {
+            $detail = new Detail($venuesDetail);
+
+            $sport->venues_details[] = $detail;
+        }
+
+        return $sport;
+    }
+
+    /**
+     * Returns a list of all available stages played in a particular season
+     *
+     * @param integer $season_id Determines season to which stages belongs
+     * @param array $requestData additional query data filters
+     * @return Competition
+     * @throws HttpException
+     */
+    public function getStages($season_id, array $requestData = [])
+    {
+        $requestData['season_id'] = $season_id;
+        $data = $this->request('stages', $requestData);
+
+        $competition = $this->buildCompetition(ArrayHelper::getValue($data, 'competition', []));
+
+        return $competition;
+    }
+
+    /**
+     * Returns the single standings data
+     *
+     * @param array $requestData additional query data filters
+     * @return Standing[]
+     * @throws HttpException
+     */
+    public function getStandings(array $requestData = [])
+    {
+        $data = $this->request('standings', $requestData);
+
+        $standings = [];
+        foreach (ArrayHelper::getValue($data, 'standings_list', []) as $item) {
+            $standing = new Standing($item);
+
+            $standings[] = $standing;
+        }
+
+        return $standings;
+    }
+
+    /**
+     * Returns single standings data
+     *
+     * @param integer $standing_id The requested standing identifier
+     * @param array $requestData additional query data filters
+     * @return Standing
+     * @throws HttpException
+     */
+    public function getStanding($standing_id, array $requestData = [])
+    {
+        $data = $this->request('standings/' . $standing_id, $requestData);
+
+        $s = ArrayHelper::getValue($data, 'standing', []);
+        $groups = ArrayHelper::remove($s, 'groups', []);
+        $standing = new Standing($s);
+
+        foreach ($groups as $g) {
+            $participants = ArrayHelper::remove($g, 'participants', []);
+            $corrections = ArrayHelper::remove($g, 'corrections', []);
+            $zones = ArrayHelper::remove($g, 'zones', []);
+
+            $group = new Group($g);
+
+            foreach ($participants as $p) {
+                $columns = ArrayHelper::remove($p, 'columns', []);
+
+                $participant = new Participant($p);
+                foreach ($columns as $c) {
+                    $column = new Column($c);
+
+                    $participant->columns[] = $column;
+                }
+
+                $group->participants[] = $participant;
+            }
+            foreach ($corrections as $c) {
+                $correction = new Correction($c);
+
+                $group->corrections[] = $correction;
+            }
+            foreach ($zones as $z) {
+                $zone = new Zone($z);
+
+                $group->zones[] = $zone;
+            }
+
+            $standing->groups[] = $group;
+        }
+
+        return $standing;
+    }
+
+    /**
+     * Returns a list of all available statuses for events from all sports
+     *
+     * @param integer $sport_id Identifier of the sport. Allows the filter status for selected sport
+     * @param array $requestData additional query data filters
+     * @return Status[]
+     * @throws HttpException
+     */
+    public function getStatuses($sport_id, array $requestData = [])
+    {
+        $requestData['sport_id'] = $sport_id;
+        $data = $this->request('statuses', $requestData);
+
+        $statuses = [];
+        foreach (ArrayHelper::getValue($data, 'statuses', []) as $s) {
+            $status = new Status($s);
+
+            $statuses[] = $status;
+        }
+
+        return $statuses;
+    }
+
+    /**
+     * Returns a list of all available tours related to the competitions e.g. ATP Tour, WTA Tour
+     *
+     * @param array $requestData additional query data filters
+     * @return Tour[]
+     * @throws HttpException
+     */
+    public function getTours(array $requestData = [])
+    {
+        $data = $this->request('tours', $requestData);
+
+        $tours = [];
+        foreach (ArrayHelper::getValue($data, 'tours', []) as $t) {
+            $tour = new Tour($t);
+
+            $tours[] = $tour;
+        }
+
+        return $tours;
     }
 
     /**
@@ -248,7 +663,7 @@ class Client extends Component
      * @return array Result data
      * @throws HttpException
      */
-    protected function request($endpoint, $data = [])
+    protected function request($endpoint, array $data = [])
     {
         if ($this->cacheDuration) {
             $key = ArrayHelper::merge($data, ['endpoint' => $endpoint]);
@@ -293,5 +708,85 @@ class Client extends Component
         }
 
         return $resultData;
+    }
+
+    /**
+     * Build competition with all possible children out of data array
+     *
+     * @param array $c Competition array data
+     * @return Competition
+     */
+    protected function buildCompetition(array $c)
+    {
+        $seasons = ArrayHelper::remove($c, 'seasons', []);
+
+        $competition = new Competition($c);
+        foreach ($seasons as $s) {
+            $stages = ArrayHelper::remove($s, 'stages', []);
+
+            $season = new Season($s);
+            foreach ($stages as $st) {
+                $groups = ArrayHelper::remove($st, 'groups', []);
+
+                $stage = new Stage($st);
+                foreach ($groups as $g) {
+                    $events = ArrayHelper::remove($g, 'events', []);
+
+                    $group = new Group($g);
+                    foreach ($events as $e) {
+                        $details = ArrayHelper::remove($e, 'details', []);
+                        $participants = ArrayHelper::remove($e, 'participants', []);
+                        $incidents = ArrayHelper::remove($e, 'event_incidents', []);
+
+                        $event = new Event($e);
+                        foreach ($details as $d) {
+                            $detail = new Detail($d);
+
+                            $event->details[] = $detail;
+                        }
+                        foreach ($participants as $p) {
+                            $results = ArrayHelper::remove($p, 'results', []);
+                            $stats = ArrayHelper::remove($p, 'stats', []);
+                            $lineups = ArrayHelper::remove($p, 'lineups', []);
+
+                            $participant = new Participant($p);
+                            foreach ($results as $r) {
+                                $result = new Result($r);
+
+                                $participant->results[] = $result;
+                            }
+                            foreach ($stats as $sta) {
+                                $stat = new Stat($sta);
+
+                                $participant->stats[] = $stat;
+                            }
+                            foreach ($lineups as $l) {
+                                $lineup = new Lineup($l);
+
+                                $participant->lineups[] = $lineup;
+                            }
+
+                            $event->participants[] = $participant;
+                        }
+                        foreach ($incidents as $i) {
+                            $incident = new Incident($i);
+
+                            $event->incidents[] = $incident;
+                        }
+
+                        $group->events[] = $event;
+                    }
+
+                    $stage->groups[] = $group;
+                }
+
+                $season->stages[] = $stage;
+            }
+
+
+            $competition->seasons[] = $season;
+        }
+
+        return $competition;
     }
 }

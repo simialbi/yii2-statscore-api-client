@@ -24,6 +24,10 @@ class Stat extends Model
      */
     public $name;
     /**
+     * @var string Attribute for internal purpose
+     */
+    public $code;
+    /**
      * @var mixed Value related to the statistic
      */
     public $value;
@@ -41,6 +45,7 @@ class Stat extends Model
             ['id', 'integer'],
             ['short_name', 'string'],
             ['name', 'string'],
+            ['code', 'string'],
             ['value', 'safe'],
             ['data_type', 'in', 'range' => ['integer', 'decimal', 'binary_text', 'binary', 'text', 'signed_integer']]
         ];

@@ -23,9 +23,17 @@ class Result extends Model
      */
     public $name;
     /**
+     * @var string Attribute for internal purpose
+     */
+    public $code;
+    /**
      * @var mixed Value related to the result
      */
     public $value;
+    /**
+     * @var string Defines type of the result.
+     */
+    public $type;
     /**
      * @var string Defines type of field generated on front (internal purpose only)
      */
@@ -40,7 +48,9 @@ class Result extends Model
             ['id', 'integer'],
             ['short_name', 'string'],
             ['name', 'string'],
+            ['code', 'string'],
             ['value', 'safe'],
+            ['type', 'in', 'range' => ['team', 'person', 'team_and_person']],
             ['data_type', 'in', 'range' => ['integer', 'decimal', 'binary_text', 'binary', 'text', 'signed_integer']]
         ];
     }

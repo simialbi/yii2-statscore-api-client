@@ -142,6 +142,19 @@ class Event extends Model
     public $competition_short_name;
 
     /**
+     * @var Detail[]
+     */
+    public $details = [];
+    /**
+     * @var Participant[]
+     */
+    public $participants = [];
+    /**
+     * @var Incident[]
+     */
+    public $incidents = [];
+
+    /**
      * {@inheritdoc}
      */
     public function rules()
@@ -178,7 +191,9 @@ class Event extends Model
             ['old_event_id', 'integer'],
             ['slug', 'string'],
             ['competition_id', 'integer'],
-            ['competition_short_name', 'string', 'max' => 20]
+            ['competition_short_name', 'string', 'max' => 20],
+
+            [['details', 'participants', 'incidents'], 'safe']
         ];
     }
 }

@@ -49,6 +49,35 @@ class Sport extends Model
     public $ut;
 
     /**
+     * @var Status[]
+     */
+    public $statuses = [];
+    /**
+     * @var Result[]
+     */
+    public $results = [];
+    /**
+     * @var Stat[]
+     */
+    public $stats = [];
+    /**
+     * @var \simialbi\yii2\statscore\models\sport\Detail[]
+     */
+    public $details = [];
+    /**
+     * @var \simialbi\yii2\statscore\models\sport\Incident[]
+     */
+    public $incidents = [];
+    /**
+     * @var StandingType[]
+     */
+    public $standing_types = [];
+    /**
+     * @var Detail[]
+     */
+    public $venues_details = [];
+
+    /**
      * {@inheritdoc}
      */
     public function rules()
@@ -62,7 +91,9 @@ class Sport extends Model
             ['participant_quantity', 'in', 'range' => ['2', 'more']],
             ['template', 'in', 'range' => ['default', 'fixed_incidents']],
             ['incidents_positions', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
-            ['ut', 'integer']
+            ['ut', 'integer'],
+
+            [['statuses', 'results', 'stats', 'details', 'incidents', 'standing_types', 'venues_details'], 'safe']
         ];
     }
 }

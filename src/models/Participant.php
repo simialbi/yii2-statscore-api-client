@@ -86,6 +86,27 @@ class Participant extends Model
     public $virtual;
 
     /**
+     * @var Result[]
+     */
+    public $results = [];
+    /**
+     * @var Stat[]
+     */
+    public $stats = [];
+    /**
+     * @var Lineup[]
+     */
+    public $lineups = [];
+    /**
+     * @var \simialbi\yii2\statscore\models\participant\Detail[]
+     */
+    public $details = [];
+    /**
+     * @var Column
+     */
+    public $columns = [];
+
+    /**
      * {@inheritdoc}
      */
     public function rules()
@@ -108,7 +129,9 @@ class Participant extends Model
             ['old_participant_id', 'integer'],
             ['slug', 'string'],
             ['logo', 'string'],
-            ['virtual', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no']
+            ['virtual', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
+
+            [['results', 'stats', 'lineups', 'details', 'columns'], 'safe']
         ];
     }
 }

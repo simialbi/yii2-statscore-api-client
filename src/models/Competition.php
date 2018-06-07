@@ -95,7 +95,7 @@ class Competition extends Model
     /**
      * @var Season[]
      */
-    public $seasons;
+    public $seasons = [];
 
     /**
      * {@inheritdoc}

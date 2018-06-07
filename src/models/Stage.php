@@ -54,6 +54,11 @@ class Stage extends Model
     public $old_stage_id;
 
     /**
+     * @var Group[]
+     */
+    public $groups;
+
+    /**
      * {@inheritdoc}
      */
     public function rules()
@@ -68,7 +73,9 @@ class Stage extends Model
             ['sort', 'integer'],
             ['is_current', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
             ['ut', 'integer'],
-            ['old_stage_id', 'integer']
+            ['old_stage_id', 'integer'],
+
+            [['groups'], 'safe']
         ];
     }
 }
