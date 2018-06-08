@@ -129,7 +129,7 @@ class Client extends Component
         if ($this->_token) {
             return $this->_token;
         }
-        if (Yii::$app->session && Yii::$app->session->has('statscoreToken')) {
+        if (Yii::$app->has('session') && Yii::$app->session->has('statscoreToken')) {
             $this->_token = Yii::$app->session->get('statscoreToken');
 
             return $this->_token;
@@ -141,7 +141,7 @@ class Client extends Component
         ]);
         $this->_token = ArrayHelper::getValue($data, 'token');
 
-        if (Yii::$app->session) {
+        if (Yii::$app->has('session')) {
             Yii::$app->session->set('statscoreToken', $this->_token);
         }
 
@@ -184,7 +184,7 @@ class Client extends Component
         $competitions = [];
         foreach (ArrayHelper::getValue($data, 'competitions', []) as $competition) {
             $model = new Competition($competition);
-            $competitions = $model;
+            $competitions[] = $model;
         }
 
         return $competitions;
@@ -202,8 +202,9 @@ class Client extends Component
     {
         $data = $this->request('competitions/' . $competition_id);
 
-        $competition = new Competition(ArrayHelper::getValue($data, 'competition'));
-        $seasons = ArrayHelper::getValue($data, 'competition.seasons', []);
+        $competitionData = ArrayHelper::getValue($data, 'competition');
+        $seasons = ArrayHelper::remove($competitionData, 'seasons', []);
+        $competition = new Competition($competitionData);
         foreach ($seasons as $season) {
             $competition->seasons[] = new Season($season);
         }
@@ -665,7 +666,7 @@ class Client extends Component
      */
     protected function request($endpoint, array $data = [])
     {
-        if ($this->cacheDuration) {
+        if ($this->cacheDuration && strcasecmp($endpoint, 'livescore') !== 0) {
             $key = ArrayHelper::merge($data, ['endpoint' => $endpoint]);
             ksort($key);
 
@@ -678,10 +679,10 @@ class Client extends Component
             ->createRequest()
             ->setMethod('get')
             ->setUrl($endpoint)
-            ->setData($data);
+            ->addData($data);
         $response = $request->send();
         /* @var $response \yii\httpclient\Response */
-        $api = ArrayHelper::remove($response->data, 'api', []);
+        $api = ArrayHelper::getValue($response->data, 'api', []);
 
         if (!$response->isOk) {
             $error = ArrayHelper::remove($api, 'error', [
@@ -689,15 +690,20 @@ class Client extends Component
                 'code' => $response->statusCode
             ]);
 
-            throw new HttpException($error['code'], $error['message']);
+            throw new HttpException(
+                ArrayHelper::getValue($error, 'code', 500),
+                ArrayHelper::getValue($error, 'message', 'Unknown error')
+            );
         }
 
         $resultData = ArrayHelper::getValue($api, 'data');
         $nextPage = ArrayHelper::getValue($api, 'method.next_page');
         $pageParam = ArrayHelper::getValue($data, 'page');
 
-        if (!empty($nextPage) && is_numeric($nextPage)) {
-            ArrayHelper::setValue($data, 'page', $nextPage);
+        if (!empty($nextPage)) {
+            $params = [];
+            parse_str(parse_url($nextPage, PHP_URL_QUERY), $params);
+            ArrayHelper::setValue($data, 'page', $params['page']);
             $subData = $this->request($endpoint, $data);
 
             $resultData = ArrayHelper::merge($resultData, $subData);
@@ -718,9 +724,13 @@ class Client extends Component
      */
     protected function buildCompetition(array $c)
     {
+        $currSeason = ArrayHelper::remove($c, 'season');
         $seasons = ArrayHelper::remove($c, 'seasons', []);
 
         $competition = new Competition($c);
+        if ($currSeason) {
+            $seasons[] = $currSeason;
+        }
         foreach ($seasons as $s) {
             $stages = ArrayHelper::remove($s, 'stages', []);
 

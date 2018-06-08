@@ -24,6 +24,14 @@ class Season extends Model
      */
     public $year;
     /**
+     * @var boolean Determines if the actual season
+     */
+    public $actual;
+    /**
+     * @var string Range level
+     */
+    public $range_level;
+    /**
      * @var integer Information about when the date and time of the record was last updated. Format UNIX_TIMESTAMP
      */
     public $ut;
@@ -47,6 +55,8 @@ class Season extends Model
             ['id', 'integer'],
             ['name', 'string'],
             ['year', 'string'],
+            ['actual', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
+            ['range_level', 'string'],
             ['ut', 'integer'],
             ['old_season_id', 'integer'],
 

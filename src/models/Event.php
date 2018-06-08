@@ -6,7 +6,6 @@
 
 namespace simialbi\yii2\statscore\models;
 
-
 use yii\base\Model;
 
 class Event extends Model
@@ -28,6 +27,10 @@ class Event extends Model
      */
     public $booked_by;
     /**
+     * @var integer Unique identifier of the venue in which the event occurs
+     */
+    public $venue_id;
+    /**
      * @var string Name of the event e.g. Spain - Italy
      */
     public $name;
@@ -43,6 +46,14 @@ class Event extends Model
      * @var string|array Type of event coverage. Can be comma separated string.
      */
     public $coverage_type;
+    /**
+     * @var integer TV coverage channels id
+     */
+    public $channel_id;
+    /**
+     * @var string TV coverage channels name
+     */
+    public $channel_name;
     /**
      * @var boolean Information concerning scouts coverage.
      */
@@ -76,9 +87,17 @@ class Event extends Model
      */
     public $relation_status;
     /**
-     * @var string Identificator of scout related to the event. Attribute for internal purposes
+     * @var string Identifier of scout related to the event. Attribute for internal purposes
      */
     public $source;
+    /**
+     * @var boolean Is the source disconnected?
+     */
+    public $source_dc;
+    /**
+     * @var string Sources supervisor
+     */
+    public $source_super;
     /**
      * @var integer Who is the winner of the match
      */
@@ -119,6 +138,18 @@ class Event extends Model
      * @var boolean Is the result verified?
      */
     public $verified_result;
+    /**
+     * @var boolean Is the protocol verified?
+     */
+    public $is_protocol_verified;
+    /**
+     * @var string If protocol is verified, by whom?
+     */
+    public $protocol_verified_by;
+    /**
+     * @var string If protocol is verified, at?
+     */
+    public $protocol_verified_at;
     /**
      * @var integer Information about when the date and time of the event record was last updated. Format UNIX_TIMESTAMP
      */
@@ -164,10 +195,13 @@ class Event extends Model
             ['client_event_id', 'integer'],
             ['booked', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
             ['booked_by', 'integer'],
+            ['venue_id', 'integer'],
             ['name', 'string'],
             ['start_date', 'datetime', 'format' => 'yyyy-MM-dd HH:mm'],
             ['ft_only', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
             ['coverage_type', 'in', 'range' => ['from_venue', 'from_tv', 'basic'], 'allowArray' => true],
+            ['channel_id', 'integer'],
+            ['channel_name', 'string'],
             ['scoutsfeed', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
             ['status_id', 'integer'],
             ['status_name', 'string'],
@@ -177,6 +211,8 @@ class Event extends Model
             ['bet_status', 'in', 'range' => ['active', 'suspended']],
             ['relation_status', 'in', 'range' => ['not_started', 'in_progress', 'finished', '30_min_left', '5_min_left']],
             ['source', 'integer'],
+            ['source_dc', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
+            ['source_super', 'string'],
             ['winner_id', 'integer'],
             ['progress_id', 'integer'],
             ['day', 'string'],
@@ -187,6 +223,9 @@ class Event extends Model
             ['neutral_venue', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
             ['item_status', 'in', 'range' => ['active', 'deleted']],
             ['verified_result', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
+            ['is_protocol_verified', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
+            ['protocol_verified_by', 'string'],
+            ['protocol_verified_at', 'datetime', 'format' => 'yyyy-MM-dd HH:mm'],
             ['ut', 'integer'],
             ['old_event_id', 'integer'],
             ['slug', 'string'],

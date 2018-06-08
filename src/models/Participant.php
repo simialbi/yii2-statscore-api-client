@@ -16,6 +16,10 @@ class Participant extends Model
      */
     public $id;
     /**
+     * @var integer Number of participant in the event. Participant with counter="1" is the home team.
+     */
+    public $counter;
+    /**
      * @var string Participant type.
      */
     public $type;
@@ -113,6 +117,7 @@ class Participant extends Model
     {
         return [
             ['id', 'integer'],
+            ['counter', 'integer', 'min' => 1],
             ['type', 'in', 'range' => ['team', 'person']],
             ['name', 'string'],
             ['short_name', 'string', 'max' => 20],

@@ -16,6 +16,10 @@ class Stage extends Model
      */
     public $id;
     /**
+     * @var integer Unique identifier for the stage name
+     */
+    public $stage_name_id;
+    /**
      * @var string Name of the stage. Possible translation of the attribute
      */
     public $name;
@@ -65,6 +69,7 @@ class Stage extends Model
     {
         return [
             ['id', 'integer'],
+            ['stage_name_id', 'integer'],
             ['name', 'string'],
             ['start_date', 'date', 'format' => 'yyyy-MM-dd'],
             ['end_date', 'date', 'format' => 'yyyy-MM-dd'],
