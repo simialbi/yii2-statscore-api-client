@@ -28,7 +28,7 @@ class Season extends Model
      */
     public $actual;
     /**
-     * @var string Range level
+     * @var integer Range level
      */
     public $range_level;
     /**
@@ -56,7 +56,7 @@ class Season extends Model
             ['name', 'string'],
             ['year', 'string'],
             ['actual', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
-            ['range_level', 'string'],
+            ['range_level', 'integer'],
             ['ut', 'integer'],
             ['old_season_id', 'integer'],
 

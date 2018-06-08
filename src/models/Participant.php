@@ -102,11 +102,11 @@ class Participant extends Model
      */
     public $lineups = [];
     /**
-     * @var \simialbi\yii2\statscore\models\participant\Detail[]
+     * @var \simialbi\yii2\statscore\models\participant\Detail
      */
-    public $details = [];
+    public $details;
     /**
-     * @var Column
+     * @var Column[]
      */
     public $columns = [];
 
