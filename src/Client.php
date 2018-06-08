@@ -323,14 +323,11 @@ class Client extends Component
 
         $participants = [];
         foreach (ArrayHelper::getValue($data, 'participants', []) as $p) {
-            $details = ArrayHelper::remove($p, 'details', []);
+            $details = ArrayHelper::remove($p, 'details');
 
             $participant = new Participant($p);
-
-            foreach ($details as $d) {
-                $detail = new ParticipantDetail($d);
-
-                $participant->details[] = $detail;
+            if (!empty($details)) {
+                $participant->details = new ParticipantDetail($details);
             }
 
             $participants[] = $participant;
