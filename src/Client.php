@@ -739,6 +739,10 @@ class Client extends Component
             false,
             [$this, 'parseEventMessage']
         );
+
+        while (count($channel->callbacks)) {
+            $channel->wait();
+        }
     }
 
     /**
