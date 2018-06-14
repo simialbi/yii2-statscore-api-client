@@ -35,7 +35,11 @@
   },
   "require-dev": {
     "yiisoft/yii2-coding-standards": "~2.0",
+    "php-amqplib/php-amqplib": "~2.7",
     "phpunit/phpunit": "~6.2"
+  },
+  "suggest": {
+    "php-amqplib/php-amqplib": "For usage with Statscore AMQP service"
   },
   "config": {
     "process-timeout": 1800

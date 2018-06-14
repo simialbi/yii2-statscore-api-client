@@ -6,6 +6,7 @@
 
 namespace simialbi\yii2\statscore;
 
+use simialbi\yii2\statscore\events\AMQPNewEventEvent;
 use simialbi\yii2\statscore\models\Area;
 use simialbi\yii2\statscore\models\Column;
 use simialbi\yii2\statscore\models\Competition;
@@ -32,8 +33,12 @@ use simialbi\yii2\statscore\models\Tour;
 use simialbi\yii2\statscore\models\Zone;
 use Yii;
 use yii\base\Component;
+use yii\base\InvalidCallException;
 use yii\base\InvalidConfigException;
+use yii\base\UnknownClassException;
 use yii\helpers\ArrayHelper;
+use yii\helpers\Json;
+use yii\helpers\StringHelper;
 use yii\web\HttpException;
 
 /**
@@ -44,6 +49,8 @@ use yii\web\HttpException;
  */
 class Client extends Component
 {
+    const EVENT_AMQP_NEW_EVENT = 'amqpNewEvent';
+
     /**
      * @var string url API endpoint
      */
@@ -60,9 +67,30 @@ class Client extends Component
     public $secretKey;
 
     /**
+     * @var string AMQP host (defaults to `queue.softnetsport.com`)
+     */
+    public $host = 'queue.softnetsport.com';
+
+    /**
      * @var string Username (for AMQP usage)
      */
     public $username;
+
+    /**
+     * @var integer Port from AMQP server (defaults to 5672)
+     */
+    public $port = 5672;
+
+    /**
+     * @var string Queue name is separate for each customer and will be send by softnetSPORT administrator.
+     * By default queue name is the same as your USERNAME.
+     */
+    public $queue;
+
+    /**
+     * @var string Virtual host name. By default it's `statscore`
+     */
+    public $virtualHost = 'statscore';
 
     /**
      * @var string Determines language for the output data. If not set, app language will be used
@@ -84,6 +112,15 @@ class Client extends Component
      * @var string Valid token generated during authentication process
      */
     private $_token;
+
+    /**
+     * @var \PhpAmqpLib\Connection\AMQPStreamConnection AMQP Connection instance
+     */
+    private $_connection;
+
+    private $_detailsMapping = [];
+    private $_statsMapping = [];
+    private $_resultsMapping = [];
 
     /**
      * {@inheritdoc}
@@ -651,6 +688,183 @@ class Client extends Component
         }
 
         return $tours;
+    }
+
+    /**
+     * Start the amqp listener service
+     *
+     * @throws InvalidCallException
+     * @throws InvalidConfigException
+     * @throws UnknownClassException
+     */
+    public function startService()
+    {
+        if (!(Yii::$app instanceof \yii\console\Application)) {
+            throw new InvalidCallException("The AMQP service is only accessible by console applications!");
+        }
+        if (!class_exists('\PhpAmqpLib\Connection\AMQPStreamConnection')) {
+            throw new UnknownClassException("`php-amqplib` is required to use AMQP service. Install by `composer require php-amqplib/php-amqplib`.");
+        }
+        if (empty($this->username)) {
+            throw new InvalidConfigException("The property 'username' must be set for AMQP usage");
+        }
+        if (empty($this->queue)) {
+            $this->queue = $this->username;
+        }
+
+        $this->_connection = Yii::createObject(
+            '\PhpAmqpLib\Connection\AMQPStreamConnection',
+            [
+                $this->host,
+                $this->port,
+                $this->username,
+                $this->secretKey,
+                $this->virtualHost,
+                false,
+                'AMQPLAIN',
+                null,
+                $this->language
+            ]
+        );
+
+        $channel = $this->_connection->channel();
+        /* @var $channel \PhpAmqpLib\Channel\AMQPChannel */
+
+        $channel->basic_consume(
+            $this->queue,
+            'consumer' . getmypid(),
+            false,
+            false,
+            false,
+            false,
+            [$this, 'parseEventMessage']
+        );
+    }
+
+    /**
+     * Parses an amqp message and triggers event
+     *
+     * @param \PhpAmqpLib\Message\AMQPMessage $message
+     */
+    public function parseEventMessage($message)
+    {
+        Yii::info("Got new amqp message: '{$message->body}'", StringHelper::basename(self::class));
+        $channel = $message->delivery_info['channel'];
+        /* @var $channel \PhpAmqpLib\Channel\AMQPChannel */
+        $channel->basic_ack($message->delivery_info['delivery_tag']);
+        // Send a message with the string "quit" to cancel the consumer.
+        if ($message->body === 'quit') {
+            $channel->basic_cancel($message->delivery_info['consumer_tag']);
+        } else {
+            try {
+                $array = Json::decode($message->body);
+                $data = ArrayHelper::getValue($array, 'data.event', []);
+            } catch (\InvalidArgumentException $e) {
+                Yii::error($e->getMessage(), StringHelper::basename(self::class));
+
+                return;
+            }
+
+            $sport_id = intval(ArrayHelper::getValue($data, 'sport_id', 0));
+
+            if (!$sport_id) {
+                return;
+            }
+            if (!isset($this->_detailsMapping[$sport_id])) {
+                if (Yii::$app->cache->exists('statscore-details-' . $sport_id)) {
+                    $this->_detailsMapping[$sport_id] = Yii::$app->cache->get('statscore-details-' . $sport_id);
+                    $this->_statsMapping[$sport_id] = Yii::$app->cache->get('statscore-stats-' . $sport_id);
+                    $this->_resultsMapping[$sport_id] = Yii::$app->cache->get('statscore-results-' . $sport_id);
+                } else {
+                    try {
+                        $sport = $this->getSport((string)$sport_id);
+
+                        $this->_detailsMapping[$sport_id] = ArrayHelper::index($sport->details, 'id');
+                        $this->_statsMapping[$sport_id] = ArrayHelper::index($sport->stats, 'id');
+                        $this->_resultsMapping[$sport_id] = ArrayHelper::index($sport->results, 'id');
+
+                        Yii::$app->cache->set(
+                            'statscore-details-' . $sport_id,
+                            $this->_detailsMapping[$sport_id],
+                            60 * 60 * 24
+                        );
+                        Yii::$app->cache->set(
+                            'statscore-stats-' . $sport_id,
+                            $this->_statsMapping[$sport_id],
+                            60 * 60 * 24
+                        );
+                        Yii::$app->cache->set(
+                            'statscore-results-' . $sport_id,
+                            $this->_resultsMapping[$sport_id],
+                            60 * 60 * 24
+                        );
+                    } catch (HttpException $e) {
+                        Yii::error($e->getMessage(), StringHelper::basename(self::class));
+
+                        return;
+                    }
+                }
+            }
+
+            $details = ArrayHelper::remove($data, 'details', []);
+            $participants = ArrayHelper::remove($data, 'participants', []);
+            $event = new Event($data);
+
+            foreach ($details as $d) {
+                if (!isset($d['id'])) {
+                    continue;
+                }
+                $detail = new Detail(ArrayHelper::merge($d, [
+                    'name' => ArrayHelper::getValue($this->_detailsMapping, [$sport_id, $d['id'], 'name']),
+                    'description' => ArrayHelper::getValue($this->_detailsMapping, [$sport_id, $d['id'], 'description'])
+                ]));
+
+                $event->details[] = $detail;
+            }
+            foreach ($participants as $p) {
+                $stats = ArrayHelper::remove($p, 'stats', []);
+                $results = ArrayHelper::remove($p, 'results', []);
+                $subParticipants = ArrayHelper::remove($p, 'subparticipants', []);
+                $participant = new Participant($p);
+
+                foreach ($stats as $s) {
+                    if (!isset($s['id'])) {
+                        continue;
+                    }
+                    $stat = new Stat(ArrayHelper::merge($s, [
+                        'short_name' => ArrayHelper::getValue($this->_statsMapping,
+                            [$sport_id, $s['id'], 'short_name']),
+                        'name' => ArrayHelper::getValue($this->_statsMapping, [$sport_id, $s['id'], 'name']),
+                        'code' => ArrayHelper::getValue($this->_statsMapping, [$sport_id, $s['id'], 'code']),
+                        'data_type' => ArrayHelper::getValue($this->_statsMapping, [$sport_id, $s['id'], 'data_type'])
+                    ]));
+
+                    $participant->stats[] = $stat;
+                }
+                foreach ($results as $r) {
+                    if (!isset($r['id'])) {
+                        continue;
+                    }
+                    $result = new Result(ArrayHelper::merge($r, [
+                        'short_name' => ArrayHelper::getValue($this->_resultsMapping,
+                            [$sport_id, $r['id'], 'short_name']),
+                        'name' => ArrayHelper::getValue($this->_resultsMapping, [$sport_id, $r['id'], 'name']),
+                        'code' => ArrayHelper::getValue($this->_resultsMapping, [$sport_id, $r['id'], 'code']),
+                        'type' => ArrayHelper::getValue($this->_resultsMapping, [$sport_id, $r['id'], 'type']),
+                        'data_type' => ArrayHelper::getValue($this->_resultsMapping, [$sport_id, $r['id'], 'data_type'])
+                    ]));
+
+                    $participant->results[] = $result;
+                }
+
+                $event->participants[] = $participant;
+            }
+
+            $this->trigger(self::EVENT_AMQP_NEW_EVENT, new AMQPNewEventEvent([
+                'sender' => $this,
+                'data' => $event
+            ]));
+        }
     }
 
     /**
