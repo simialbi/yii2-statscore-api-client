@@ -45,6 +45,10 @@ class Incident extends Model
      */
     public $incident_id;
     /**
+     * @var string Name of incident e.g. goal, yellow card, red card etc
+     */
+    public $incident_name;
+    /**
      * @var integer Participant id
      */
     public $participant_id;
@@ -172,6 +176,7 @@ class Incident extends Model
             ['event_status_name', 'string'],
             ['event_time', 'string'],
             ['incident_id', 'integer'],
+            ['incident_name', 'string'],
             ['participant_id', 'integer'],
             ['participant_team_id', 'integer'],
             ['participant_name', 'string'],

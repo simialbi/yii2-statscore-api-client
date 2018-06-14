@@ -944,21 +944,33 @@ class Client extends Component
             $seasons[] = $currSeason;
         }
         foreach ($seasons as $s) {
+            $currStage = ArrayHelper::remove($s, 'stage');
             $stages = ArrayHelper::remove($s, 'stages', []);
 
             $season = new Season($s);
+            if ($currStage) {
+                $stages[] = $currStage;
+            }
             foreach ($stages as $st) {
+                $currGroup = ArrayHelper::remove($st, 'group');
                 $groups = ArrayHelper::remove($st, 'groups', []);
 
                 $stage = new Stage($st);
+                if ($currGroup) {
+                    $groups[] = $currGroup;
+                }
                 foreach ($groups as $g) {
+                    $currEvent = ArrayHelper::remove($g, 'event');
                     $events = ArrayHelper::remove($g, 'events', []);
 
                     $group = new Group($g);
+                    if ($currEvent) {
+                        $events[] = $currEvent;
+                    }
                     foreach ($events as $e) {
                         $details = ArrayHelper::remove($e, 'details', []);
                         $participants = ArrayHelper::remove($e, 'participants', []);
-                        $incidents = ArrayHelper::remove($e, 'event_incidents', []);
+                        $incidents = ArrayHelper::remove($e, 'events_incidents', []);
 
                         $event = new Event($e);
                         foreach ($details as $d) {
