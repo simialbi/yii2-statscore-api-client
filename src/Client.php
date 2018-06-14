@@ -862,7 +862,7 @@ class Client extends Component
 
             $this->trigger(self::EVENT_AMQP_NEW_EVENT, new AMQPNewEventEvent([
                 'sender' => $this,
-                'data' => $event
+                'event' => $event
             ]));
         }
     }
