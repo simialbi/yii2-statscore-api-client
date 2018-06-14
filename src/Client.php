@@ -463,7 +463,7 @@ class Client extends Component
         $stats = ArrayHelper::remove($s, 'stats', []);
         $details = ArrayHelper::remove($s, 'details', []);
         $incidents = ArrayHelper::remove($s, 'incidents', []);
-        $standingTypes = ArrayHelper::remove($s, 'standing_types', []);
+        $standingTypes = ArrayHelper::remove($s, 'standings_types', []);
         $venuesDetails = ArrayHelper::remove($s, 'venues_details', []);
         $sport = new Sport($s);
 

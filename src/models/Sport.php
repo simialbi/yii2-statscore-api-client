@@ -57,9 +57,12 @@ class Sport extends Model
      */
     public $results = [];
     /**
-     * @var Stat[]
+     * @var array
      */
-    public $stats = [];
+    public $stats = [
+        'team' => [],
+        'person' => []
+    ];
     /**
      * @var \simialbi\yii2\statscore\models\sport\Detail[]
      */

@@ -40,6 +40,10 @@ class Incident extends Model
      */
     public $group;
     /**
+     * @var boolean Determines if incident has details
+     */
+    public $details;
+    /**
      * @var integer Information about the date and time of when the record was last updated. Format UNIX_TIMESTAMP
      */
     public $ut;
@@ -60,7 +64,7 @@ class Incident extends Model
         return [
             ['id', 'integer'],
             ['name', 'string'],
-            [['important', 'important_for_trader'], 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
+            [['details', 'important', 'important_for_trader'], 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
             ['sport_id', 'integer'],
             ['type', 'in', 'range' => ['team', 'event']],
             ['group', 'string'],

@@ -19,6 +19,10 @@ class Event extends Model
      */
     public $client_event_id;
     /**
+     * @var string AMQP: This attribute describes the type of action taken for any new data
+     */
+    public $action;
+    /**
      * @var boolean True if result is booked in selected product
      */
     public $booked;
@@ -111,6 +115,18 @@ class Event extends Model
      */
     public $day;
     /**
+     * @var integer Unique identifier for area in which competitions are played.
+     */
+    public $area_id;
+    /**
+     * @var integer Unique identifier for the season.
+     */
+    public $season_id;
+    /**
+     * @var integer Unique identifier for the stage
+     */
+    public $stage_id;
+    /**
      * @var integer Unique identifier for the sport in which event is played.
      */
     public $sport_id;
@@ -119,6 +135,10 @@ class Event extends Model
      */
     public $sport_name;
     /**
+     * @var integer|null Unique identifier for the tour in which the competition is played.
+     */
+    public $tour_id;
+    /**
      * @var integer Unique identifier for the round in which event is played. Possible null value.
      */
     public $round_id;
@@ -126,6 +146,10 @@ class Event extends Model
      * @var string Name of the round
      */
     public $round_name;
+    /**
+     * @var string Event gender.
+     */
+    public $gender;
     /**
      * @var boolean Determines if the event is played at a neutral venue.
      */
@@ -193,6 +217,7 @@ class Event extends Model
         return [
             ['id', 'integer'],
             ['client_event_id', 'integer'],
+            ['action', 'in', 'range' => ['insert', 'update', 'delete']],
             ['booked', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
             ['booked_by', 'integer'],
             ['venue_id', 'integer'],
@@ -216,10 +241,15 @@ class Event extends Model
             ['winner_id', 'integer'],
             ['progress_id', 'integer'],
             ['day', 'string'],
+            ['area_id', 'integer'],
+            ['season_id', 'integer'],
+            ['stage_id', 'integer'],
             ['sport_id', 'integer'],
             ['sport_name', 'string'],
+            ['tour_id', 'integer'],
             ['round_id', 'integer'],
             ['round_name', 'string'],
+            ['gender', 'in', 'range' => ['male', 'female', 'mixed']],
             ['neutral_venue', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
             ['item_status', 'in', 'range' => ['active', 'deleted']],
             ['verified_result', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
