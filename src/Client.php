@@ -145,7 +145,7 @@ class Client extends Component
         $this->_client = new \yii\httpclient\Client([
             'baseUrl' => $this->baseUrl,
             'requestConfig' => [
-                'format' => \yii\httpclient\Client::FORMAT_JSON
+                'format' => \yii\httpclient\Client::FORMAT_URLENCODED
             ],
             'responseConfig' => [
                 'format' => \yii\httpclient\Client::FORMAT_JSON
