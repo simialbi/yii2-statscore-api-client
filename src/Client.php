@@ -200,7 +200,8 @@ class Client extends Component
 
         $areas = [];
         foreach (ArrayHelper::getValue($data, 'areas', []) as $area) {
-            $model = new Area($area);
+            $model = new Area();
+            $model->setAttributes($area);
             $areas = $model;
         }
 
@@ -220,7 +221,8 @@ class Client extends Component
 
         $competitions = [];
         foreach (ArrayHelper::getValue($data, 'competitions', []) as $competition) {
-            $model = new Competition($competition);
+            $model = new Competition();
+            $model->setAttributes($competition);
             $competitions[] = $model;
         }
 
@@ -241,17 +243,21 @@ class Client extends Component
 
         $competitionData = ArrayHelper::getValue($data, 'competition');
         $seasons = ArrayHelper::remove($competitionData, 'seasons', []);
-        $competition = new Competition($competitionData);
+        $competition = new Competition();
+        $competition->setAttributes($competitionData);
         foreach ($seasons as $season) {
-            $competition->seasons[] = new Season($season);
+            $s = new Season();
+            $s->setAttributes($season);
+
+            $competition->seasons[] = $s;
         }
 
         return $competition;
     }
 
     /**
-     * Returns a single event with details including participants, partial results, stats, lineups and important
-     * incidents for the event
+     * Returns a single event with details including participants, partial results, stats,
+     * lineups and important incidents for the event
      *
      * @param array $requestData additional query data filters
      * @return Competition[]
@@ -318,7 +324,8 @@ class Client extends Component
 
         $incidents = [];
         foreach (ArrayHelper::getValue($data, 'incidents', []) as $i) {
-            $incident = new Incident($i);
+            $incident = new Incident();
+            $incident->setAttributes($i);
             $incidents[] = $incident;
         }
 
@@ -362,9 +369,11 @@ class Client extends Component
         foreach (ArrayHelper::getValue($data, 'participants', []) as $p) {
             $details = ArrayHelper::remove($p, 'details');
 
-            $participant = new Participant($p);
+            $participant = new Participant();
+            $participant->setAttributes($p);
             if (!empty($details)) {
-                $participant->details = new ParticipantDetail($details);
+                $participant->details = new ParticipantDetail();
+                $participant->details->setAttributes($details);
             }
 
             $participants[] = $participant;
@@ -389,9 +398,11 @@ class Client extends Component
         foreach (ArrayHelper::getValue($data, 'participants', []) as $p) {
             $details = ArrayHelper::remove($p, 'details');
 
-            $participant = new Participant($p);
+            $participant = new Participant();
+            $participant->setAttributes($p);
             if (!empty($details)) {
-                $participant->details = new ParticipantDetail($details);
+                $participant->details = new ParticipantDetail();
+                $participant->details->setAttributes($details);
             }
 
             $participants[] = $participant;
@@ -413,7 +424,8 @@ class Client extends Component
 
         $rounds = [];
         foreach (ArrayHelper::getValue($data, 'rounds', []) as $r) {
-            $round = new Round($r);
+            $round = new Round();
+            $round->setAttributes($r);
 
             $rounds[] = $round;
         }
@@ -471,7 +483,8 @@ class Client extends Component
 
         $sports = [];
         foreach (ArrayHelper::getValue($data, 'sports', []) as $s) {
-            $sport = new Sport($s);
+            $sport = new Sport();
+            $sport->setAttributes($s);
 
             $sports[] = $sport;
         }
@@ -499,44 +512,53 @@ class Client extends Component
         $incidents = ArrayHelper::remove($s, 'incidents', []);
         $standingTypes = ArrayHelper::remove($s, 'standings_types', []);
         $venuesDetails = ArrayHelper::remove($s, 'venues_details', []);
-        $sport = new Sport($s);
+        $sport = new Sport();
+        $sport->setAttributes($s);
 
         foreach ($statuses as $st) {
-            $status = new Status($st);
+            $status = new Status();
+            $status->setAttributes($st);
 
             $sport->statuses[] = $status;
         }
         foreach ($results as $r) {
-            $result = new Result($r);
+            $result = new Result();
+            $result->setAttributes($r);
 
             $sport->results[] = $result;
         }
         foreach (ArrayHelper::getValue($stats, 'team', []) as $teamStat) {
-            $stat = new Stat($teamStat);
+            $stat = new Stat();
+            $stat->setAttributes($teamStat);
 
             $sport->stats[] = $stat;
         }
         foreach (ArrayHelper::getValue($stats, 'person', []) as $personStat) {
-            $stat = new Stat($personStat);
+            $stat = new Stat();
+            $stat->setAttributes($personStat);
 
             $sport->stats[] = $stat;
         }
         foreach ($details as $d) {
-            $detail = new SportDetail($d);
+            $detail = new SportDetail();
+            $detail->setAttributes($d);
 
             $sport->details[] = $detail;
         }
         foreach ($incidents as $i) {
-            $incident = new SportIncident($i);
+            $incident = new SportIncident();
+            $incident->setAttributes($i);
 
             $sport->incidents[] = $incident;
         }
         foreach ($standingTypes as $type) {
             $columns = ArrayHelper::remove($type, 'columns', []);
 
-            $standingType = new StandingType($type);
+            $standingType = new StandingType();
+            $standingType->setAttributes($type);
             foreach ($columns as $c) {
-                $column = new Column($c);
+                $column = new Column();
+                $column->setAttributes($c);
 
                 $standingType->columns[] = $column;
             }
@@ -544,7 +566,8 @@ class Client extends Component
             $sport->standing_types[] = $standingType;
         }
         foreach ($venuesDetails as $venuesDetail) {
-            $detail = new Detail($venuesDetail);
+            $detail = new Detail();
+            $detail->setAttributes($venuesDetail);
 
             $sport->venues_details[] = $detail;
         }
@@ -583,7 +606,8 @@ class Client extends Component
 
         $standings = [];
         foreach (ArrayHelper::getValue($data, 'standings_list', []) as $item) {
-            $standing = new Standing($item);
+            $standing = new Standing();
+            $standing->setAttributes($item);
 
             $standings[] = $standing;
         }
@@ -605,21 +629,25 @@ class Client extends Component
 
         $s = ArrayHelper::getValue($data, 'standing', []);
         $groups = ArrayHelper::remove($s, 'groups', []);
-        $standing = new Standing($s);
+        $standing = new Standing();
+        $standing->setAttributes($s);
 
         foreach ($groups as $g) {
             $participants = ArrayHelper::remove($g, 'participants', []);
             $corrections = ArrayHelper::remove($g, 'corrections', []);
             $zones = ArrayHelper::remove($g, 'zones', []);
 
-            $group = new Group($g);
+            $group = new Group();
+            $group->setAttributes($g);
 
             foreach ($participants as $p) {
                 $columns = ArrayHelper::remove($p, 'columns', []);
 
-                $participant = new Participant($p);
+                $participant = new Participant();
+                $participant->setAttributes($p);
                 foreach ($columns as $c) {
-                    $column = new Column($c);
+                    $column = new Column();
+                    $column->setAttributes($c);
 
                     $participant->columns[] = $column;
                 }
@@ -627,12 +655,14 @@ class Client extends Component
                 $group->participants[] = $participant;
             }
             foreach ($corrections as $c) {
-                $correction = new Correction($c);
+                $correction = new Correction();
+                $correction->setAttributes($c);
 
                 $group->corrections[] = $correction;
             }
             foreach ($zones as $z) {
-                $zone = new Zone($z);
+                $zone = new Zone();
+                $zone->setAttributes($z);
 
                 $group->zones[] = $zone;
             }
@@ -658,7 +688,8 @@ class Client extends Component
 
         $statuses = [];
         foreach (ArrayHelper::getValue($data, 'statuses', []) as $s) {
-            $status = new Status($s);
+            $status = new Status();
+            $status->setAttributes($s);
 
             $statuses[] = $status;
         }
@@ -679,7 +710,8 @@ class Client extends Component
 
         $tours = [];
         foreach (ArrayHelper::getValue($data, 'tours', []) as $t) {
-            $tour = new Tour($t);
+            $tour = new Tour();
+            $tour->setAttributes($t);
 
             $tours[] = $tour;
         }
@@ -697,13 +729,13 @@ class Client extends Component
     public function startService()
     {
         if (!(Yii::$app instanceof \yii\console\Application)) {
-            throw new InvalidCallException("The AMQP service is only accessible by console applications!");
+            throw new InvalidCallException('The AMQP service is only accessible by console applications!');
         }
         if (!class_exists('\PhpAmqpLib\Connection\AMQPStreamConnection')) {
-            throw new UnknownClassException("`php-amqplib` is required to use AMQP service. Install by `composer require php-amqplib/php-amqplib`.");
+            throw new UnknownClassException('`php-amqplib` is required to use AMQP service. Install by `composer require php-amqplib/php-amqplib`.');
         }
         if (empty($this->username)) {
-            throw new InvalidConfigException("The property 'username' must be set for AMQP usage");
+            throw new InvalidConfigException('The property \'username\' must be set for AMQP usage');
         }
         if (empty($this->queue)) {
             $this->queue = $this->username;
@@ -809,13 +841,15 @@ class Client extends Component
 
             $details = ArrayHelper::remove($data, 'details', []);
             $participants = ArrayHelper::remove($data, 'participants', []);
-            $event = new Event($data);
+            $event = new Event();
+            $event->setAttributes($data);
 
             foreach ($details as $d) {
                 if (!isset($d['id'])) {
                     continue;
                 }
-                $detail = new Detail(ArrayHelper::merge($d, [
+                $detail = new Detail();
+                $detail->setAttributes(ArrayHelper::merge($d, [
                     'name' => ArrayHelper::getValue($this->_detailsMapping, [$sport_id, $d['id'], 'name']),
                     'description' => ArrayHelper::getValue($this->_detailsMapping, [$sport_id, $d['id'], 'description'])
                 ]));
@@ -825,16 +859,20 @@ class Client extends Component
             foreach ($participants as $p) {
                 $stats = ArrayHelper::remove($p, 'stats', []);
                 $results = ArrayHelper::remove($p, 'results', []);
-                $subParticipants = ArrayHelper::remove($p, 'subparticipants', []);
-                $participant = new Participant($p);
+//                $subParticipants = ArrayHelper::remove($p, 'subparticipants', []);
+                $participant = new Participant();
+                $participant->setAttributes($p);
 
                 foreach ($stats as $s) {
                     if (!isset($s['id'])) {
                         continue;
                     }
-                    $stat = new Stat(ArrayHelper::merge($s, [
-                        'short_name' => ArrayHelper::getValue($this->_statsMapping,
-                            [$sport_id, $s['id'], 'short_name']),
+                    $stat = new Stat();
+                    $stat->setAttributes(ArrayHelper::merge($s, [
+                        'short_name' => ArrayHelper::getValue(
+                            $this->_statsMapping,
+                            [$sport_id, $s['id'], 'short_name']
+                        ),
                         'name' => ArrayHelper::getValue($this->_statsMapping, [$sport_id, $s['id'], 'name']),
                         'code' => ArrayHelper::getValue($this->_statsMapping, [$sport_id, $s['id'], 'code']),
                         'data_type' => ArrayHelper::getValue($this->_statsMapping, [$sport_id, $s['id'], 'data_type'])
@@ -846,9 +884,12 @@ class Client extends Component
                     if (!isset($r['id'])) {
                         continue;
                     }
-                    $result = new Result(ArrayHelper::merge($r, [
-                        'short_name' => ArrayHelper::getValue($this->_resultsMapping,
-                            [$sport_id, $r['id'], 'short_name']),
+                    $result = new Result();
+                    $result->setAttributes(ArrayHelper::merge($r, [
+                        'short_name' => ArrayHelper::getValue(
+                            $this->_resultsMapping,
+                            [$sport_id, $r['id'], 'short_name']
+                        ),
                         'name' => ArrayHelper::getValue($this->_resultsMapping, [$sport_id, $r['id'], 'name']),
                         'code' => ArrayHelper::getValue($this->_resultsMapping, [$sport_id, $r['id'], 'code']),
                         'type' => ArrayHelper::getValue($this->_resultsMapping, [$sport_id, $r['id'], 'type']),
@@ -939,7 +980,8 @@ class Client extends Component
         $currSeason = ArrayHelper::remove($c, 'season');
         $seasons = ArrayHelper::remove($c, 'seasons', []);
 
-        $competition = new Competition($c);
+        $competition = new Competition();
+        $competition->setAttributes($c);
         if ($currSeason) {
             $seasons[] = $currSeason;
         }
@@ -947,7 +989,8 @@ class Client extends Component
             $currStage = ArrayHelper::remove($s, 'stage');
             $stages = ArrayHelper::remove($s, 'stages', []);
 
-            $season = new Season($s);
+            $season = new Season();
+            $season->setAttributes($s);
             if ($currStage) {
                 $stages[] = $currStage;
             }
@@ -955,7 +998,8 @@ class Client extends Component
                 $currGroup = ArrayHelper::remove($st, 'group');
                 $groups = ArrayHelper::remove($st, 'groups', []);
 
-                $stage = new Stage($st);
+                $stage = new Stage();
+                $stage->setAttributes($st);
                 if ($currGroup) {
                     $groups[] = $currGroup;
                 }
@@ -963,7 +1007,8 @@ class Client extends Component
                     $currEvent = ArrayHelper::remove($g, 'event');
                     $events = ArrayHelper::remove($g, 'events', []);
 
-                    $group = new Group($g);
+                    $group = new Group();
+                    $group->setAttributes($g);
                     if ($currEvent) {
                         $events[] = $currEvent;
                     }
@@ -972,9 +1017,11 @@ class Client extends Component
                         $participants = ArrayHelper::remove($e, 'participants', []);
                         $incidents = ArrayHelper::remove($e, 'events_incidents', []);
 
-                        $event = new Event($e);
+                        $event = new Event();
+                        $event->setAttributes($e);
                         foreach ($details as $d) {
-                            $detail = new Detail($d);
+                            $detail = new Detail();
+                            $detail->setAttributes($d);
 
                             $event->details[] = $detail;
                         }
@@ -983,19 +1030,23 @@ class Client extends Component
                             $stats = ArrayHelper::remove($p, 'stats', []);
                             $lineups = ArrayHelper::remove($p, 'lineups', []);
 
-                            $participant = new Participant($p);
+                            $participant = new Participant();
+                            $participant->setAttributes($p);
                             foreach ($results as $r) {
-                                $result = new Result($r);
+                                $result = new Result();
+                                $result->setAttributes($r);
 
                                 $participant->results[] = $result;
                             }
                             foreach ($stats as $sta) {
-                                $stat = new Stat($sta);
+                                $stat = new Stat();
+                                $stat->setAttributes($sta);
 
                                 $participant->stats[] = $stat;
                             }
                             foreach ($lineups as $l) {
-                                $lineup = new Lineup($l);
+                                $lineup = new Lineup();
+                                $lineup->setAttributes($l);
 
                                 $participant->lineups[] = $lineup;
                             }
@@ -1003,7 +1054,8 @@ class Client extends Component
                             $event->participants[] = $participant;
                         }
                         foreach ($incidents as $i) {
-                            $incident = new Incident($i);
+                            $incident = new Incident();
+                            $incident->setAttributes($i);
 
                             $event->incidents[] = $incident;
                         }

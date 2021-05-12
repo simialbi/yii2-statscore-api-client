@@ -49,6 +49,22 @@ class Incident extends Model
      */
     public $incident_name;
     /**
+     * @var integer[] Attribute identifiers related to incident, separated by comma
+     */
+    public $attribute_ids;
+    /**
+     * @var array Contains additional information, e.g. goalkeeper_id, assistant_id
+     */
+    public $additional_info;
+    /**
+     * @var string Describes confirmation status for the incident. Possible values
+     *  - tbd: appears as default for Goal, Penalty, Red card, Yellow card and Corner incidents.
+     *  - confirmed: appears when the following incident will be confirmed by referee.
+     *  - cancelled: appears when the following incident will be cancelled by referee. Incidents with his value
+     *               have no effect on statistics
+     */
+    public $confirmation;
+    /**
      * @var integer Participant id
      */
     public $participant_id;
@@ -78,8 +94,18 @@ class Incident extends Model
     public $subparticipant_slug;
     /**
      * @var string Additional information about the incident
+     * @internal
      */
     public $info;
+    /**
+     * @var boolean Determines if important
+     * @internal
+     */
+    public $important;
+    /**
+     * @var boolean Determines if important for trader
+     */
+    public $important_for_trader;
     /**
      * @var integer Status id in data.sports.statuses node for event
      */
@@ -177,6 +203,10 @@ class Incident extends Model
             ['event_time', 'string'],
             ['incident_id', 'integer'],
             ['incident_name', 'string'],
+            ['attribute_ids', 'each', 'rule' => ['integer']],
+            ['additional_info', 'safe'],
+            ['confirmation', 'in', 'range' => ['tbd', 'confirmed', 'cancelled']],
+            [['important', 'important_for_trader'], 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
             ['participant_id', 'integer'],
             ['participant_team_id', 'integer'],
             ['participant_name', 'string'],

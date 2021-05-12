@@ -6,7 +6,6 @@
 
 namespace simialbi\yii2\statscore\models;
 
-
 use yii\base\Model;
 
 class Competition extends Model
@@ -91,6 +90,18 @@ class Competition extends Model
      * @var string friendly url for competition
      */
     public $slug;
+    /**
+     * @var string
+     */
+    public $stats_lvl;
+    /**
+     * @var boolean
+     */
+    public $generate_season_stats;
+    /**
+     * @var string
+     */
+    public $status;
 
     /**
      * @var Season[]
@@ -138,6 +149,9 @@ class Competition extends Model
             ['ut', 'integer'],
             ['old_competition_id', 'integer'],
             ['slug', 'string'],
+            ['stats_lvl', 'in', 'range' => ['gold', 'vip']],
+            ['generate_season_stats', 'boolean'],
+            ['status', 'string'],
 
             [['seasons'], 'safe']
         ];

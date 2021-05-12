@@ -59,6 +59,10 @@ class Detail extends Model
      * @var mixed Determines default value
      */
     public $default;
+    /**
+     * @var boolean Determines if detail is season detail
+     */
+    public $is_season_detail;
 
     /**
      * {@inheritdoc}
@@ -77,7 +81,8 @@ class Detail extends Model
             ['related_statuses', 'each', 'rule' => ['integer']],
             ['format', 'string'],
             ['nullable', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
-            ['default', 'safe']
+            ['default', 'safe'],
+            ['is_season_detail', 'boolean']
         ];
     }
 }

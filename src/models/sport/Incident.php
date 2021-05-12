@@ -55,6 +55,10 @@ class Incident extends Model
      * @var string Determine what the participant includes incident
      */
     public $for;
+    /**
+     * @var boolean Determine if the game is breaked
+     */
+    public $game_break;
 
     /**
      * {@inheritdoc}
@@ -64,7 +68,7 @@ class Incident extends Model
         return [
             ['id', 'integer'],
             ['name', 'string'],
-            [['details', 'important', 'important_for_trader'], 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
+            [['details', 'important', 'important_for_trader', 'game_break'], 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
             ['sport_id', 'integer'],
             ['type', 'in', 'range' => ['team', 'event']],
             ['group', 'string'],

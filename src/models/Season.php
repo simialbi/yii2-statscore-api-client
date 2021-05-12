@@ -40,6 +40,10 @@ class Season extends Model
      * @deprecated
      */
     public $old_season_id;
+    /**
+     * @var string
+     */
+    public $stats_lvl;
 
     /**
      * @var Stage[]
@@ -59,6 +63,7 @@ class Season extends Model
             ['range_level', 'integer'],
             ['ut', 'integer'],
             ['old_season_id', 'integer'],
+            ['stats_lvl', 'in', 'range' => ['gold', 'vip']],
 
             [['stages'], 'safe']
         ];

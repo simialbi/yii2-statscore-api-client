@@ -87,6 +87,14 @@ class Event extends Model
      */
     public $bet_status;
     /**
+     * @var string Bet card status
+     */
+    public $bet_cards;
+    /**
+     * @var string Bet corners status
+     */
+    public $bet_corners;
+    /**
      * @var string Relation status. Attribute for internal purposes.
      */
     public $relation_status;
@@ -110,6 +118,10 @@ class Event extends Model
      * @var integer Who advanced to the next round
      */
     public $progress_id;
+    /**
+     * @var integer Which group the event is pointing to
+     */
+    public $group_id;
     /**
      * @var string Day of the season
      */
@@ -163,6 +175,14 @@ class Event extends Model
      */
     public $verified_result;
     /**
+     * @var string If result is verified, by whom?
+     */
+    public $result_verified_by;
+    /**
+     * @var string If result is verified, at?
+     */
+    public $result_verified_at;
+    /**
      * @var boolean Is the protocol verified?
      */
     public $is_protocol_verified;
@@ -195,6 +215,18 @@ class Event extends Model
      * @var string Abbreviated name of the competition
      */
     public $competition_short_name;
+    /**
+     * @var boolean Inverted participants
+     */
+    public $inverted_participants;
+    /**
+     * @var boolean BFS
+     */
+    public $bfs;
+    /**
+     * @var string Stats LVL
+     */
+    public $event_stats_lvl;
 
     /**
      * @var Detail[]
@@ -233,13 +265,14 @@ class Event extends Model
             ['status_type', 'in', 'range' => ['live', 'scheduled', 'finished', 'cancelled', 'interrupted', 'deleted', 'other']],
             ['clock_time', 'integer'],
             ['clock_status', 'in', 'range' => ['running', 'stopped']],
-            ['bet_status', 'in', 'range' => ['active', 'suspended']],
+            [['bet_status', 'bet_cards', 'bet_corners'], 'in', 'range' => ['active', 'suspended']],
             ['relation_status', 'in', 'range' => ['not_started', 'in_progress', 'finished', '30_min_left', '5_min_left']],
             ['source', 'integer'],
             ['source_dc', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
             ['source_super', 'string'],
             ['winner_id', 'integer'],
             ['progress_id', 'integer'],
+            ['group_id', 'integer'],
             ['day', 'string'],
             ['area_id', 'integer'],
             ['season_id', 'integer'],
@@ -253,6 +286,8 @@ class Event extends Model
             ['neutral_venue', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
             ['item_status', 'in', 'range' => ['active', 'deleted']],
             ['verified_result', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
+            ['result_verified_by', 'string'],
+            ['result_verified_at', 'datetime', 'format' => 'yyyy-MM-dd HH:mm'],
             ['is_protocol_verified', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
             ['protocol_verified_by', 'string'],
             ['protocol_verified_at', 'datetime', 'format' => 'yyyy-MM-dd HH:mm'],
@@ -261,6 +296,9 @@ class Event extends Model
             ['slug', 'string'],
             ['competition_id', 'integer'],
             ['competition_short_name', 'string', 'max' => 20],
+            ['inverted_participants', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
+            ['bfs', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
+            ['event_stats_lvl', 'in', 'range' => ['gold', 'vip']],
 
             [['details', 'participants', 'incidents'], 'safe']
         ];

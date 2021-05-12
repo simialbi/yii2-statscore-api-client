@@ -88,6 +88,14 @@ class Participant extends Model
      * @var boolean Determines if the participant is real player / team or virtual.
      */
     public $virtual;
+    /**
+     * @var integer The shirt number of the participant
+     */
+    public $shirt_nr;
+    /**
+     * @var string The connection to the team
+     */
+    public $team_connection;
 
     /**
      * @var Result[]
@@ -135,6 +143,8 @@ class Participant extends Model
             ['slug', 'string'],
             ['logo', 'string'],
             ['virtual', 'boolean', 'trueValue' => 'yes', 'falseValue' => 'no'],
+            ['shirt_nr', 'integer'],
+            ['team_connection', 'in', 'range' => ['current']],
 
             [['results', 'stats', 'lineups', 'details', 'columns'], 'safe']
         ];
