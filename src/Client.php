@@ -98,17 +98,9 @@ class Client extends Component
     public $language;
 
     /**
-     * @var resource|null The context to create the connection to amqp service. If set, this must be a resource created
-     * via `stream_context_create()`.
-     *
-     * @see stream_context_create()
+     * @var array Request object configuration
      */
-    public $context = null;
-
-    /**
-     * @var boolean Whether to keep the connection alive or not.
-     */
-    public $keepalive = false;
+    public $requestConfig = [];
 
     /**
      * @var boolean|integer Set a duration in seconds before a cache entry will expire. If set, data will
@@ -157,9 +149,9 @@ class Client extends Component
 
         $this->_client = new \yii\httpclient\Client([
             'baseUrl' => $this->baseUrl,
-            'requestConfig' => [
+            'requestConfig' => ArrayHelper::merge($this->requestConfig, [
                 'format' => \yii\httpclient\Client::FORMAT_URLENCODED
-            ],
+            ]),
             'responseConfig' => [
                 'format' => \yii\httpclient\Client::FORMAT_JSON
             ]
@@ -765,11 +757,7 @@ class Client extends Component
                 false,
                 'AMQPLAIN',
                 null,
-                $this->language,
-                3.0,
-                3.0,
-                $this->context,
-                $this->keepalive
+                $this->language
             ]
         );
 
@@ -950,6 +938,7 @@ class Client extends Component
             ->setMethod('get')
             ->setUrl($endpoint)
             ->addData($data);
+
         $response = $request->send();
         /* @var $response \yii\httpclient\Response */
         $api = ArrayHelper::getValue($response->data, 'api', []);
