@@ -98,6 +98,19 @@ class Client extends Component
     public $language;
 
     /**
+     * @var resource|null The context to create the connection to amqp service. If set, this must be a resource created
+     * via `stream_context_create()`.
+     *
+     * @see stream_context_create()
+     */
+    public $context = null;
+
+    /**
+     * @var boolean Whether to keep the connection alive or not.
+     */
+    public $keepalive = false;
+
+    /**
      * @var boolean|integer Set a duration in seconds before a cache entry will expire. If set, data will
      * be cached by this duration. If not, there will be no caching.
      */
@@ -752,7 +765,11 @@ class Client extends Component
                 false,
                 'AMQPLAIN',
                 null,
-                $this->language
+                $this->language,
+                3.0,
+                3.0,
+                $this->context,
+                $this->keepalive
             ]
         );
 
