@@ -67,9 +67,19 @@ class Client extends Component
     public $secretKey;
 
     /**
-     * @var string AMQP host (defaults to `queue.softnetsport.com`)
+     * @var string The http proxy's host name
      */
-    public $host = 'queue.softnetsport.com';
+    public $proxyHost;
+
+    /**
+     * @var integer The http proxy's port
+     */
+    public $proxyPort;
+
+    /**
+     * @var string AMQP host (defaults to `queue.statscore.com`)
+     */
+    public $host = 'queue.statscore.com';
 
     /**
      * @var string Username (for AMQP usage)
@@ -119,7 +129,7 @@ class Client extends Component
     private $_token;
 
     /**
-     * @var \PhpAmqpLib\Connection\AMQPStreamConnection AMQP Connection instance
+     * @var \PhpAmqpLib\Connection\AbstractConnection AMQP Connection instance
      */
     private $_connection;
 
@@ -194,6 +204,7 @@ class Client extends Component
      * Returns a list of all available areas (continents and countries)
      *
      * @param integer|null $parent_area_id
+     *
      * @return Area[]
      * @throws HttpException
      */
@@ -217,6 +228,7 @@ class Client extends Component
      * Returns a list of all available competitions
      *
      * @param array $requestData additional query data filters
+     *
      * @return Competition[]
      * @throws HttpException
      */
@@ -265,6 +277,7 @@ class Client extends Component
      * lineups and important incidents for the event
      *
      * @param array $requestData additional query data filters
+     *
      * @return Competition[]
      * @throws HttpException
      */
@@ -286,6 +299,7 @@ class Client extends Component
      * lineups and important incidents for the event
      *
      * @param integer $event_id The requested event identifier
+     *
      * @return Competition
      * @throws HttpException
      */
@@ -303,6 +317,7 @@ class Client extends Component
      *
      * @param integer $stage_id Identifier of the stage related to the group.
      * @param array $requestData additional query data filters
+     *
      * @return Competition
      * @throws HttpException
      */
@@ -320,6 +335,7 @@ class Client extends Component
      * Returns incidents, which may occur during the event (list of available incidents)
      *
      * @param array $requestData additional query data filters
+     *
      * @return Incident[]
      * @throws HttpException
      */
@@ -341,6 +357,7 @@ class Client extends Component
      * Returns LIVE events related to competitions, seasons, stages and groups
      *
      * @param array $requestData additional query data filters
+     *
      * @return array
      * @throws HttpException
      */
@@ -362,6 +379,7 @@ class Client extends Component
      *
      * @param integer $sport_id Identifier for the sport. Allows you to filter participants for the selected sport.
      * @param array $requestData additional query data filters
+     *
      * @return Participant[]
      * @throws HttpException
      */
@@ -392,6 +410,7 @@ class Client extends Component
      *
      * @param integer $participant_id The requested participant (team) identifier
      * @param array $requestData additional query data filters
+     *
      * @return Participant[]
      * @throws HttpException
      */
@@ -420,6 +439,7 @@ class Client extends Component
      * Returns a list of all available rounds which could be related to the event f.e Round 1, Quarterfinals etc.
      *
      * @param array $requestData additional query data filters
+     *
      * @return Round[]
      * @throws HttpException
      */
@@ -442,6 +462,7 @@ class Client extends Component
      * Returns a list of all available seasons played in the competitions
      *
      * @param array $requestData additional query data filters
+     *
      * @return Competition[]
      * @throws HttpException
      */
@@ -463,6 +484,7 @@ class Client extends Component
      *
      * @param integer $season_id The requested season identifier
      * @param array $requestData additional query data filters
+     *
      * @return Competition
      * @throws HttpException
      */
@@ -479,6 +501,7 @@ class Client extends Component
      * Returns a list of all available sports
      *
      * @param array $requestData additional query data filters
+     *
      * @return Sport[]
      * @throws HttpException
      */
@@ -502,6 +525,7 @@ class Client extends Component
      *
      * @param integer $sport_id The requested sport identifier
      * @param array $requestData additional query data filters
+     *
      * @return Sport
      * @throws HttpException
      */
@@ -585,6 +609,7 @@ class Client extends Component
      *
      * @param integer $season_id Determines season to which stages belongs
      * @param array $requestData additional query data filters
+     *
      * @return Competition
      * @throws HttpException
      */
@@ -602,6 +627,7 @@ class Client extends Component
      * Returns the single standings data
      *
      * @param array $requestData additional query data filters
+     *
      * @return Standing[]
      * @throws HttpException
      */
@@ -625,6 +651,7 @@ class Client extends Component
      *
      * @param integer $standing_id The requested standing identifier
      * @param array $requestData additional query data filters
+     *
      * @return Standing
      * @throws HttpException
      */
@@ -683,6 +710,7 @@ class Client extends Component
      *
      * @param integer $sport_id Identifier of the sport. Allows the filter status for selected sport
      * @param array $requestData additional query data filters
+     *
      * @return Status[]
      * @throws HttpException
      */
@@ -706,6 +734,7 @@ class Client extends Component
      * Returns a list of all available tours related to the competitions e.g. ATP Tour, WTA Tour
      *
      * @param array $requestData additional query data filters
+     *
      * @return Tour[]
      * @throws HttpException
      */
@@ -746,9 +775,10 @@ class Client extends Component
             $this->queue = $this->username;
         }
 
-        $this->_connection = Yii::createObject(
-            '\PhpAmqpLib\Connection\AMQPStreamConnection',
-            [
+        if ($this->proxyHost && $this->proxyPort) {
+            $this->_connection = Yii::createObject('\simialbi\yii2\statscore\amqp\AMQPProxyConnection', [
+                $this->proxyHost,
+                $this->proxyPort,
                 $this->host,
                 $this->port,
                 $this->username,
@@ -758,8 +788,20 @@ class Client extends Component
                 'AMQPLAIN',
                 null,
                 $this->language
-            ]
-        );
+            ]);
+        } else {
+            $this->_connection = Yii::createObject('\PhpAmqpLib\Connection\AMQPStreamConnection', [
+                $this->host,
+                $this->port,
+                $this->username,
+                $this->secretKey,
+                $this->virtualHost,
+                false,
+                'AMQPLAIN',
+                null,
+                $this->language
+            ]);
+        }
 
         $channel = $this->_connection->channel();
         /* @var $channel \PhpAmqpLib\Channel\AMQPChannel */
@@ -919,6 +961,7 @@ class Client extends Component
      *
      * @param string $endpoint api resource endpoint to call
      * @param array $data Content data fields.
+     *
      * @return array Result data
      * @throws HttpException
      */
@@ -979,6 +1022,7 @@ class Client extends Component
      * Build competition with all possible children out of data array
      *
      * @param array $c Competition array data
+     *
      * @return Competition
      */
     protected function buildCompetition(array $c)
