@@ -35,7 +35,7 @@ class AMQPProxyConnection extends AbstractConnection
      * @param false $keepalive
      * @param integer $writeTimeout
      * @param integer $heartbeat
-     * @param integer $connectionTimeout
+     * @param integer $channelRpcTimeout
      *
      * @throws \Exception
      */
@@ -55,8 +55,12 @@ class AMQPProxyConnection extends AbstractConnection
         $keepalive = true,
         $writeTimeout = 3,
         $heartbeat = 0,
-        $connectionTimeout = 0
+        $channelRpcTimeout = 0
     ) {
+        if ($channelRpcTimeout > $readTimeout) {
+            throw new \InvalidArgumentException('channel RPC timeout must not be greater than I/O read timeout');
+        }
+
         $io = new ProxyIO($proxyHost, $proxyPort, $host, $port, $readTimeout, $keepalive, $writeTimeout, $heartbeat);
 
         parent::__construct(
@@ -69,7 +73,7 @@ class AMQPProxyConnection extends AbstractConnection
             $locale,
             $io,
             $heartbeat,
-            $connectionTimeout
+            $channelRpcTimeout
         );
     }
 

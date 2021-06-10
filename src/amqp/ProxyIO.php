@@ -6,11 +6,12 @@
 
 namespace simialbi\yii2\statscore\amqp;
 
-use PhpAmqpLib\Exception\AMQPHeartbeatMissedException;
+use PhpAmqpLib\Exception\AMQPConnectionClosedException;
 use PhpAmqpLib\Exception\AMQPIOException;
 use PhpAmqpLib\Exception\AMQPSocketException;
+use PhpAmqpLib\Exception\AMQPTimeoutException;
 use PhpAmqpLib\Helper\MiscHelper;
-use PhpAmqpLib\Wire\AMQPWriter;
+use PhpAmqpLib\Helper\SocketConstants;
 use PhpAmqpLib\Wire\IO\AbstractIO;
 
 class ProxyIO extends AbstractIO
@@ -36,29 +37,9 @@ class ProxyIO extends AbstractIO
     protected $port;
 
     /**
-     * @var float the timeout for reading
-     */
-    protected $readTimeout;
-
-    /**
-     * @var float the timeout for writing
-     */
-    protected $writeTimeout;
-
-    /**
      * @var integer the interval to send the heartbeat
      */
     protected $heartbeat;
-
-    /**
-     * @var float the unix timestamp when the last read happened
-     */
-    protected $lastRead;
-
-    /**
-     * @var float the unix timestamp whe the last write happened
-     */
-    protected $lastWrite;
 
     /**
      * @var boolean whether or not to keep alive the connection
@@ -96,9 +77,9 @@ class ProxyIO extends AbstractIO
         $this->proxyPort = $proxyPort;
         $this->host = $host;
         $this->port = $port;
-        $this->readTimeout = $readTimeout;
+        $this->read_timeout = $readTimeout;
         $this->keepAlive = $keepAlive;
-        $this->writeTimeout = $writeTimeOut ?: $readTimeout;
+        $this->write_timeout = $writeTimeOut ?: $readTimeout;
         $this->heartbeat = $heartbeat;
     }
 
@@ -107,35 +88,56 @@ class ProxyIO extends AbstractIO
      * {@inheritDoc}
      * @throws AMQPIOException
      */
-    public function read($n)
+    public function read($len)
     {
-
         if (is_null($this->_sock)) {
             throw new AMQPSocketException(sprintf(
                 'Socket was null! Last SocketError was: %s',
                 socket_strerror(socket_last_error())
             ));
         }
-        $rsp = '';
-        $read = 0;
-        $buf = socket_read($this->_sock, $n);
-        while ($read < $n && $buf !== '' && $buf !== false) {
-            $this->check_heartbeat();
 
-            $read += mb_strlen($buf, 'ASCII');
-            $rsp .= $buf;
-            $buf = socket_read($this->_sock, $n - $read);
+        $this->check_heartbeat();
+
+        list($timeoutSec, $timeoutUSec) = MiscHelper::splitSecondsMicroseconds($this->read_timeout);
+        $readStart = microtime(true);
+        $read = 0;
+        $rsp = '';
+        while ($read < $len) {
+            $buffer = null;
+            $result = socket_recv($this->_sock, $buffer, $len - $read, 0);
+            if ($result === 0) {
+                // From linux recv() manual:
+                // When a stream socket peer has performed an orderly shutdown,
+                // the return value will be 0 (the traditional "end-of-file" return).
+                // http://php.net/manual/en/function.socket-recv.php#47182
+                $this->close();
+                throw new AMQPConnectionClosedException('Broken pipe or closed connection');
+            }
+
+            if (empty($buffer)) {
+                $readNow = microtime(true);
+                $tRead = $readNow - $readStart;
+                if ($tRead > $this->read_timeout) {
+                    throw new AMQPTimeoutException('Too many read attempts detected in SocketIO');
+                }
+                $this->select($timeoutSec, $timeoutUSec);
+                continue;
+            }
+
+            $read += mb_strlen($buffer, 'ASCII');
+            $rsp .= $buffer;
         }
 
-        if (mb_strlen($rsp, 'ASCII') != $n) {
+        if (mb_strlen($rsp, 'ASCII') != $len) {
             throw new AMQPIOException(sprintf(
                 'Error reading data. Received %s instead of expected %s bytes',
                 mb_strlen($rsp, 'ASCII'),
-                $n
+                $len
             ));
         }
 
-        $this->lastRead = microtime(true);
+        $this->last_read = microtime(true);
 
         return $rsp;
     }
@@ -147,39 +149,68 @@ class ProxyIO extends AbstractIO
      */
     public function write($data)
     {
+        // Null sockets are invalid, throw exception
+        if (is_null($this->_sock)) {
+            throw new AMQPSocketException(sprintf(
+                'Socket was null! Last SocketError was: %s',
+                socket_strerror(socket_last_error())
+            ));
+        }
 
+        $this->checkBrokerHeartbeat();
+
+        $written = 0;
         $len = mb_strlen($data, 'ASCII');
+        $writeStart = microtime(true);
 
-        while (true) {
-            // Null sockets are invalid, throw exception
-            if (is_null($this->_sock)) {
-                throw new AMQPSocketException(sprintf(
-                    'Socket was null! Last SocketError was: %s',
-                    socket_strerror(socket_last_error())
-                ));
+        while ($written < $len) {
+            $this->set_error_handler();
+            try {
+                $this->selectWrite();
+                $buffer = mb_substr($data, $written, self::BUFFER_SIZE, 'ASCII');
+                $result = socket_write($this->_sock, $buffer, self::BUFFER_SIZE);
+                $this->cleanup_error_handler();
+            } catch (\ErrorException $e) {
+                $code = socket_last_error($this->_sock);
+                $constants = SocketConstants::getInstance();
+                switch ($code) {
+                    case $constants->SOCKET_EPIPE:
+                    case $constants->SOCKET_ENETDOWN:
+                    case $constants->SOCKET_ENETUNREACH:
+                    case $constants->SOCKET_ENETRESET:
+                    case $constants->SOCKET_ECONNABORTED:
+                    case $constants->SOCKET_ECONNRESET:
+                    case $constants->SOCKET_ECONNREFUSED:
+                    case $constants->SOCKET_ETIMEDOUT:
+                        $this->close();
+                        throw new AMQPConnectionClosedException(socket_strerror($code), $code, $e);
+                    default:
+                        throw new AMQPIOException(sprintf(
+                            'Error sending data. Last SocketError: %s',
+                            socket_strerror($code)
+                        ), $code, $e);
+                }
             }
 
-            $sent = socket_write($this->_sock, $data, $len);
-            if ($sent === false) {
+            if ($result === false) {
                 throw new AMQPIOException(sprintf(
                     'Error sending data. Last SocketError: %s',
-                    socket_strerror(socket_last_error())
+                    socket_strerror(socket_last_error($this->_sock))
                 ));
             }
 
-            // Check if the entire message has been sent
-            if ($sent < $len) {
-                // If not sent the entire message.
-                // Get the part of the message that has not yet been sent as message
-                $data = mb_substr($data, $sent, mb_strlen($data, 'ASCII') - $sent, 'ASCII');
-                // Get the length of the not sent part
-                $len -= $sent;
+            $now = microtime(true);
+            if ($result > 0) {
+                $this->last_write = $writeStart = $now;
+                $written += $result;
             } else {
-                break;
+                if (($now - $writeStart) > $this->write_timeout) {
+                    throw AMQPTimeoutException::writeTimeout($this->write_timeout);
+                }
             }
         }
 
-        $this->lastWrite = microtime(true);
+        $this->last_write = microtime(true);
     }
 
     /**
@@ -188,24 +219,24 @@ class ProxyIO extends AbstractIO
      */
     public function close()
     {
-        if (is_resource($this->_sock)) {
+        $this->disableHeartbeat();
+        if (is_resource($this->_sock) || is_a($this->_sock, \Socket::class)) {
             socket_close($this->_sock);
         }
         $this->_sock = null;
-        $this->lastRead = null;
-        $this->lastWrite = null;
+        $this->last_read = null;
+        $this->last_write = null;
     }
 
     /**
-     * {@inheritDoc}
+     * @return int|bool
      */
-    public function select($sec, $uSec)
+    protected function selectWrite()
     {
-        $read = [$this->_sock];
-        $write = null;
-        $except = null;
+        $read = $except = null;
+        $write = [$this->_sock];
 
-        return socket_select($read, $write, $except, $sec, $uSec);
+        return socket_select($read, $write, $except, 0, 100000);
     }
 
     /**
@@ -216,16 +247,23 @@ class ProxyIO extends AbstractIO
     {
         $this->_sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
 
-        list($sec, $uSec) = MiscHelper::splitSecondsMicroseconds($this->writeTimeout);
+        list($sec, $uSec) = MiscHelper::splitSecondsMicroseconds($this->write_timeout);
         socket_set_option($this->_sock, SOL_SOCKET, SO_SNDTIMEO, ['sec' => $sec, 'usec' => $uSec]);
-        list($sec, $uSec) = MiscHelper::splitSecondsMicroseconds($this->readTimeout);
+        list($sec, $uSec) = MiscHelper::splitSecondsMicroseconds($this->read_timeout);
         socket_set_option($this->_sock, SOL_SOCKET, SO_RCVTIMEO, ['sec' => $sec, 'usec' => $uSec]);
 
-        if (!socket_connect($this->_sock, $this->proxyHost, $this->proxyPort)) {
+        $this->set_error_handler();
+        try {
+            $connected = socket_connect($this->_sock, $this->host, $this->port);
+            $this->cleanup_error_handler();
+        } catch (\ErrorException $e) {
+            $connected = false;
+        }
+        if (!$connected) {
             $errno = socket_last_error($this->_sock);
             $errStr = socket_strerror($errno);
             throw new AMQPIOException(sprintf(
-                'Error Connecting to proxy (%s): %s',
+                'Error Connecting to server (%s): %s',
                 $errno,
                 $errStr
             ), $errno);
@@ -258,18 +296,9 @@ class ProxyIO extends AbstractIO
     }
 
     /**
-     * Reconnect socket
-     * {@inheritDoc}
-     * @throws AMQPIOException
-     */
-    public function reconnect()
-    {
-        $this->close();
-        $this->connect();
-    }
-
-    /**
-     * {@inheritDoc}
+     * Returns the socket instance
+     *
+     * @return resource|\Socket
      */
     public function getSocket()
     {
@@ -278,40 +307,33 @@ class ProxyIO extends AbstractIO
 
     /**
      * {@inheritDoc}
-     * @throws AMQPIOException
      */
-    public function check_heartbeat()
+    protected function do_select($sec, $usec)
     {
-        // ignore unless heartbeat interval is set
-        if ($this->heartbeat !== 0 && $this->lastRead && $this->lastWrite) {
-            $t = microtime(true);
-            $tRead = round($t - $this->lastRead);
-            $tWrite = round($t - $this->lastWrite);
-
-            // server has gone away
-            if (($this->heartbeat * 2) < $tRead) {
-                $this->close();
-                throw new AMQPHeartbeatMissedException('Missed server heartbeat');
-            }
-
-            // time for client to send a heartbeat
-            if (($this->heartbeat / 2) < $tWrite) {
-                $this->writeHeartbeat();
-            }
+        if (!is_resource($this->_sock) && !is_a($this->_sock, \Socket::class)) {
+            $this->_sock = null;
+            throw new AMQPConnectionClosedException('Broken pipe or closed connection', 0);
         }
+
+        $read = [$this->_sock];
+        $write = null;
+        $except = null;
+
+        return socket_select($read, $write, $except, $sec, $usec);
     }
 
     /**
-     * Sends a heartbeat message
-     * @throws AMQPIOException
+     * {@inheritDoc}
      */
-    protected function writeHeartbeat()
+    public function error_handler($errno, $errstr, $errfile, $errline, $errcontext = null)
     {
-        $pkt = new AMQPWriter();
-        $pkt->write_octet(8);
-        $pkt->write_short(0);
-        $pkt->write_long(0);
-        $pkt->write_octet(0xCE);
-        $this->write($pkt->getvalue());
+        $constants = SocketConstants::getInstance();
+        // socket_select warning that it has been interrupted by a signal - EINTR
+        if (isset($constants->SOCKET_EINTR) && false !== strrpos($errstr, socket_strerror($constants->SOCKET_EINTR))) {
+            // it's allowed while processing signals
+            return;
+        }
+
+        parent::error_handler($errno, $errstr, $errfile, $errline, $errcontext);
     }
 }
