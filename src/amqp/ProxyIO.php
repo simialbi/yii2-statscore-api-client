@@ -72,7 +72,8 @@ class ProxyIO extends AbstractIO
         $keepAlive = true,
         $writeTimeOut = null,
         $heartbeat = 0
-    ) {
+    )
+    {
         $this->proxyHost = $proxyHost;
         $this->proxyPort = $proxyPort;
         $this->host = $host;
@@ -111,14 +112,21 @@ class ProxyIO extends AbstractIO
                 // When a stream socket peer has performed an orderly shutdown,
                 // the return value will be 0 (the traditional "end-of-file" return).
                 // http://php.net/manual/en/function.socket-recv.php#47182
+                /*
                 $this->close();
                 throw new AMQPConnectionClosedException('Broken pipe or closed connection');
+                /*/
+                $this->reconnect();
+                //*/
             }
 
             if (empty($buffer)) {
                 $readNow = microtime(true);
                 $tRead = $readNow - $readStart;
                 if ($tRead > $this->read_timeout) {
+                    if (!empty($rsp)) {
+                        break;
+                    }
                     throw new AMQPTimeoutException('Too many read attempts detected in SocketIO');
                 }
                 $this->select($timeoutSec, $timeoutUSec);
@@ -129,7 +137,7 @@ class ProxyIO extends AbstractIO
             $rsp .= $buffer;
         }
 
-        if (mb_strlen($rsp, 'ASCII') != $len) {
+        if (mb_strlen($rsp, 'ASCII') > $len) {
             throw new AMQPIOException(sprintf(
                 'Error reading data. Received %s instead of expected %s bytes',
                 mb_strlen($rsp, 'ASCII'),
@@ -229,17 +237,6 @@ class ProxyIO extends AbstractIO
     }
 
     /**
-     * @return int|bool
-     */
-    protected function selectWrite()
-    {
-        $read = $except = null;
-        $write = [$this->_sock];
-
-        return socket_select($read, $write, $except, 0, 100000);
-    }
-
-    /**
      * {@inheritDoc}
      * @throws AMQPIOException
      */
@@ -254,7 +251,7 @@ class ProxyIO extends AbstractIO
 
         $this->set_error_handler();
         try {
-            $connected = socket_connect($this->_sock, $this->host, $this->port);
+            $connected = socket_connect($this->_sock, $this->proxyHost, $this->proxyPort);
             $this->cleanup_error_handler();
         } catch (\ErrorException $e) {
             $connected = false;
@@ -276,21 +273,9 @@ class ProxyIO extends AbstractIO
             socket_set_option($this->_sock, SOL_SOCKET, SO_KEEPALIVE, 1);
         }
 
-        $this->write("\05\01\00");
-        $rsp = $this->read(2);
-        if ($rsp === "\05\00") {
-            $host = gethostbyname($this->host);
-            $req = "\05\01\00\01" . inet_pton($host) . pack('n', $this->port);
-            $this->write($req);
-            $rsp = $this->read(10);
-            if ($rsp[1] !== "\00") {
-                $this->close();
-                throw new AMQPSocketException(sprintf(
-                    'Connection to AMQP host denied by proxy: Code %s',
-                    ord($rsp[1])
-                ));
-            }
-        } else {
+        $this->write("CONNECT {$this->host}:{$this->port} HTTP/1.1\r\n\r\n");
+        $rsp = $this->read(1024);
+        if (!preg_match('#^HTTP/\d\.\d 200#', $rsp)) {
             throw new AMQPSocketException('Connection to AMQP host denied by proxy by unknown reason');
         }
     }
@@ -308,6 +293,42 @@ class ProxyIO extends AbstractIO
     /**
      * {@inheritDoc}
      */
+    public function error_handler($errno, $errstr, $errfile, $errline, $errcontext = null)
+    {
+        $constants = SocketConstants::getInstance();
+        // socket_select warning that it has been interrupted by a signal - EINTR
+        if (isset($constants->SOCKET_EINTR) && false !== strrpos($errstr, socket_strerror($constants->SOCKET_EINTR))) {
+            // it's allowed while processing signals
+            return;
+        }
+
+        parent::error_handler($errno, $errstr, $errfile, $errline, $errcontext);
+    }
+
+    /**
+     * Reconnect socket
+     * @throws AMQPIOException
+     */
+    protected function reconnect()
+    {
+        $this->close();
+        $this->connect();
+    }
+
+    /**
+     * @return int|bool
+     */
+    protected function selectWrite()
+    {
+        $read = $except = null;
+        $write = [$this->_sock];
+
+        return socket_select($read, $write, $except, 0, 100000);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     protected function do_select($sec, $usec)
     {
         if (!is_resource($this->_sock) && !is_a($this->_sock, \Socket::class)) {
@@ -320,20 +341,5 @@ class ProxyIO extends AbstractIO
         $except = null;
 
         return socket_select($read, $write, $except, $sec, $usec);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function error_handler($errno, $errstr, $errfile, $errline, $errcontext = null)
-    {
-        $constants = SocketConstants::getInstance();
-        // socket_select warning that it has been interrupted by a signal - EINTR
-        if (isset($constants->SOCKET_EINTR) && false !== strrpos($errstr, socket_strerror($constants->SOCKET_EINTR))) {
-            // it's allowed while processing signals
-            return;
-        }
-
-        parent::error_handler($errno, $errstr, $errfile, $errline, $errcontext);
     }
 }
