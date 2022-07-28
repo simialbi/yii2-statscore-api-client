@@ -35,10 +35,10 @@ class Area extends Model
     /**
      * {@inheritdoc}
      */
-    public function rules()
+    public function rules(): array
     {
         return [
-            ['id', 'integer'].
+            ['id', 'integer'],
             ['area_code', 'string', 'length' => 3],
             ['name', 'string'],
             ['parent_area_id', 'integer'],

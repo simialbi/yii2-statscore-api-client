@@ -75,7 +75,7 @@ class Detail extends Model
     /**
      * {@inheritdoc}
      */
-    public function rules()
+    public function rules(): array
     {
         return [
             ['founded', 'string'],

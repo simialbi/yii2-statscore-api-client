@@ -60,20 +60,19 @@ class ProxyIO extends AbstractIO
      * @param integer $port the port of the AMQP host
      * @param float $readTimeout the timeout for reading
      * @param boolean $keepAlive whether or not to keep the connection alive
-     * @param null $writeTimeOut if null defaults to read timeout
+     * @param float|null $writeTimeOut if null defaults to read timeout
      * @param int $heartbeat how often to send heartbeat. 0 means off
      */
     public function __construct(
-        $proxyHost,
-        $proxyPort,
-        $host,
-        $port,
-        $readTimeout,
-        $keepAlive = true,
-        $writeTimeOut = null,
-        $heartbeat = 0
-    )
-    {
+        string $proxyHost,
+        int    $proxyPort,
+        string $host,
+        int    $port,
+        float  $readTimeout,
+        bool   $keepAlive = true,
+        ?float $writeTimeOut = null,
+        int    $heartbeat = 0
+    ) {
         $this->proxyHost = $proxyHost;
         $this->proxyPort = $proxyPort;
         $this->host = $host;
@@ -89,7 +88,7 @@ class ProxyIO extends AbstractIO
      * {@inheritDoc}
      * @throws AMQPIOException
      */
-    public function read($len)
+    public function read($len): string
     {
         if (is_null($this->_sock)) {
             throw new AMQPSocketException(sprintf(
@@ -100,7 +99,7 @@ class ProxyIO extends AbstractIO
 
         $this->check_heartbeat();
 
-        list($timeoutSec, $timeoutUSec) = MiscHelper::splitSecondsMicroseconds($this->read_timeout);
+        [$timeoutSec, $timeoutUSec] = MiscHelper::splitSecondsMicroseconds($this->read_timeout);
         $readStart = microtime(true);
         $read = 0;
         $rsp = '';
@@ -244,9 +243,9 @@ class ProxyIO extends AbstractIO
     {
         $this->_sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
 
-        list($sec, $uSec) = MiscHelper::splitSecondsMicroseconds($this->write_timeout);
+        [$sec, $uSec] = MiscHelper::splitSecondsMicroseconds($this->write_timeout);
         socket_set_option($this->_sock, SOL_SOCKET, SO_SNDTIMEO, ['sec' => $sec, 'usec' => $uSec]);
-        list($sec, $uSec) = MiscHelper::splitSecondsMicroseconds($this->read_timeout);
+        [$sec, $uSec] = MiscHelper::splitSecondsMicroseconds($this->read_timeout);
         socket_set_option($this->_sock, SOL_SOCKET, SO_RCVTIMEO, ['sec' => $sec, 'usec' => $uSec]);
 
         $this->set_error_handler();

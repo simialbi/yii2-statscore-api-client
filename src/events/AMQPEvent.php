@@ -6,7 +6,6 @@
 
 namespace simialbi\yii2\statscore\events;
 
-
 use simialbi\yii2\statscore\Client;
 use yii\base\Event;
 

@@ -6,7 +6,6 @@
 
 namespace simialbi\yii2\statscore\events;
 
-
 use simialbi\yii2\statscore\models\Event;
 
 /**

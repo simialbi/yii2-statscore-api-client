@@ -39,6 +39,7 @@ use yii\base\UnknownClassException;
 use yii\helpers\ArrayHelper;
 use yii\helpers\Json;
 use yii\helpers\StringHelper;
+use yii\httpclient\Exception;
 use yii\web\HttpException;
 
 /**
@@ -176,7 +177,7 @@ class Client extends Component
      * @return string Valid token generated during authentication process
      * @throws HttpException
      */
-    public function getToken()
+    public function getToken(): string
     {
         if ($this->_token) {
             return $this->_token;
@@ -208,7 +209,7 @@ class Client extends Component
      * @return Area[]
      * @throws HttpException
      */
-    public function getAreas($parent_area_id = null)
+    public function getAreas(?int $parent_area_id = null)
     {
         $data = $this->request('areas', [
             'parent_area_id' => $parent_area_id
@@ -232,7 +233,7 @@ class Client extends Component
      * @return Competition[]
      * @throws HttpException
      */
-    public function getCompetitions(array $requestData = [])
+    public function getCompetitions(array $requestData = []): array
     {
         $data = $this->request('competitions', $requestData);
 
@@ -254,7 +255,7 @@ class Client extends Component
      * @return Competition
      * @throws HttpException
      */
-    public function getCompetition($competition_id)
+    public function getCompetition(int $competition_id): Competition
     {
         $data = $this->request('competitions/' . $competition_id);
 
@@ -281,7 +282,7 @@ class Client extends Component
      * @return Competition[]
      * @throws HttpException
      */
-    public function getEvents(array $requestData = [])
+    public function getEvents(array $requestData = []): array
     {
         $data = $this->request('events', $requestData);
 
@@ -303,13 +304,11 @@ class Client extends Component
      * @return Competition
      * @throws HttpException
      */
-    public function getEvent($event_id)
+    public function getEvent(int $event_id): Competition
     {
         $data = $this->request('events/' . $event_id);
 
-        $competition = $this->buildCompetition(ArrayHelper::getValue($data, 'competition'));
-
-        return $competition;
+        return $this->buildCompetition(ArrayHelper::getValue($data, 'competition'));
     }
 
     /**
@@ -321,14 +320,12 @@ class Client extends Component
      * @return Competition
      * @throws HttpException
      */
-    public function getGroups($stage_id, array $requestData = [])
+    public function getGroups(int $stage_id, array $requestData = []): Competition
     {
         $requestData['stage_id'] = $stage_id;
         $data = $this->request('groups', $requestData);
 
-        $competition = $this->buildCompetition(ArrayHelper::getValue($data, 'competition'));
-
-        return $competition;
+        return $this->buildCompetition(ArrayHelper::getValue($data, 'competition'));
     }
 
     /**
@@ -339,7 +336,7 @@ class Client extends Component
      * @return Incident[]
      * @throws HttpException
      */
-    public function getIncidents(array $requestData = [])
+    public function getIncidents(array $requestData = []): array
     {
         $data = $this->request('incidents', $requestData);
 
@@ -361,7 +358,7 @@ class Client extends Component
      * @return array
      * @throws HttpException
      */
-    public function getLiveScore(array $requestData = [])
+    public function getLiveScore(array $requestData = []): array
     {
         $data = $this->request('livescore', $requestData);
 
@@ -383,7 +380,7 @@ class Client extends Component
      * @return Participant[]
      * @throws HttpException
      */
-    public function getParticipants($sport_id, array $requestData = [])
+    public function getParticipants(int $sport_id, array $requestData = []): array
     {
         $requestData['sport_id'] = $sport_id;
         $data = $this->request('participants', $requestData);
@@ -414,7 +411,7 @@ class Client extends Component
      * @return Participant[]
      * @throws HttpException
      */
-    public function getParticipantsSquad($participant_id, array $requestData = [])
+    public function getParticipantsSquad(int $participant_id, array $requestData = []): array
     {
         $data = $this->request('participants/' . $participant_id . '/squad', $requestData);
 
@@ -443,7 +440,7 @@ class Client extends Component
      * @return Round[]
      * @throws HttpException
      */
-    public function getRounds(array $requestData = [])
+    public function getRounds(array $requestData = []): array
     {
         $data = $this->request('rounds', $requestData);
 
@@ -466,7 +463,7 @@ class Client extends Component
      * @return Competition[]
      * @throws HttpException
      */
-    public function getSeasons(array $requestData = [])
+    public function getSeasons(array $requestData = []): array
     {
         $data = $this->request('seasons', $requestData);
 
@@ -488,13 +485,11 @@ class Client extends Component
      * @return Competition
      * @throws HttpException
      */
-    public function getSeason($season_id, array $requestData = [])
+    public function getSeason($season_id, array $requestData = []): Competition
     {
         $data = $this->request('seasons/' . $season_id, $requestData);
 
-        $competition = $this->buildCompetition(ArrayHelper::getValue($data, 'competition', []));
-
-        return $competition;
+        return $this->buildCompetition(ArrayHelper::getValue($data, 'competition', []));
     }
 
     /**
@@ -505,7 +500,7 @@ class Client extends Component
      * @return Sport[]
      * @throws HttpException
      */
-    public function getSports(array $requestData = [])
+    public function getSports(array $requestData = []): array
     {
         $data = $this->request('sports', $requestData);
 
@@ -529,7 +524,7 @@ class Client extends Component
      * @return Sport
      * @throws HttpException
      */
-    public function getSport($sport_id, array $requestData = [])
+    public function getSport(int $sport_id, array $requestData = []): Sport
     {
         $data = $this->request('sports/' . $sport_id, $requestData);
 
@@ -613,14 +608,12 @@ class Client extends Component
      * @return Competition
      * @throws HttpException
      */
-    public function getStages($season_id, array $requestData = [])
+    public function getStages(int $season_id, array $requestData = []): Competition
     {
         $requestData['season_id'] = $season_id;
         $data = $this->request('stages', $requestData);
 
-        $competition = $this->buildCompetition(ArrayHelper::getValue($data, 'competition', []));
-
-        return $competition;
+        return $this->buildCompetition(ArrayHelper::getValue($data, 'competition', []));
     }
 
     /**
@@ -631,7 +624,7 @@ class Client extends Component
      * @return Standing[]
      * @throws HttpException
      */
-    public function getStandings(array $requestData = [])
+    public function getStandings(array $requestData = []): array
     {
         $data = $this->request('standings', $requestData);
 
@@ -655,7 +648,7 @@ class Client extends Component
      * @return Standing
      * @throws HttpException
      */
-    public function getStanding($standing_id, array $requestData = [])
+    public function getStanding(int $standing_id, array $requestData = []): Standing
     {
         $data = $this->request('standings/' . $standing_id, $requestData);
 
@@ -714,7 +707,7 @@ class Client extends Component
      * @return Status[]
      * @throws HttpException
      */
-    public function getStatuses($sport_id, array $requestData = [])
+    public function getStatuses(int $sport_id, array $requestData = []): array
     {
         $requestData['sport_id'] = $sport_id;
         $data = $this->request('statuses', $requestData);
@@ -738,7 +731,7 @@ class Client extends Component
      * @return Tour[]
      * @throws HttpException
      */
-    public function getTours(array $requestData = [])
+    public function getTours(array $requestData = []): array
     {
         $data = $this->request('tours', $requestData);
 
@@ -825,8 +818,9 @@ class Client extends Component
      * Parses an amqp message and triggers event
      *
      * @param \PhpAmqpLib\Message\AMQPMessage $message
+     * @throws \Exception
      */
-    public function parseEventMessage($message)
+    public function parseEventMessage(\PhpAmqpLib\Message\AMQPMessage $message)
     {
         Yii::info("Got new amqp message: '{$message->body}'", StringHelper::basename(self::class));
         $channel = $message->delivery_info['channel'];
@@ -964,8 +958,10 @@ class Client extends Component
      *
      * @return array Result data
      * @throws HttpException
+     * @throws InvalidConfigException
+     * @throws Exception
      */
-    protected function request($endpoint, array $data = [])
+    protected function request(string $endpoint, array $data = []): array
     {
         if ($this->cacheDuration && strcasecmp($endpoint, 'livescore') !== 0) {
             $key = ArrayHelper::merge($data, ['endpoint' => $endpoint]);
@@ -1025,7 +1021,7 @@ class Client extends Component
      *
      * @return Competition
      */
-    protected function buildCompetition(array $c)
+    protected function buildCompetition(array $c): Competition
     {
         $currSeason = ArrayHelper::remove($c, 'season');
         $seasons = ArrayHelper::remove($c, 'seasons', []);
