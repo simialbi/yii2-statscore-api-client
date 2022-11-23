@@ -6,6 +6,7 @@
 
 namespace simialbi\yii2\statscore;
 
+use PhpAmqpLib\Exchange\AMQPExchangeType;
 use simialbi\yii2\statscore\events\AMQPNewEventEvent;
 use simialbi\yii2\statscore\models\Area;
 use simialbi\yii2\statscore\models\Column;
@@ -792,7 +793,11 @@ class Client extends Component
                 false,
                 'AMQPLAIN',
                 null,
-                $this->language
+                $this->language,
+                3,
+                3,
+                null,
+                true
             ]);
         }
 
@@ -809,9 +814,12 @@ class Client extends Component
             [$this, 'parseEventMessage']
         );
 
-        while (count($channel->callbacks)) {
+        while ($channel->is_open()) {
             $channel->wait();
         }
+
+        $channel->close();
+        $this->_connection->close();
     }
 
     /**
@@ -823,18 +831,17 @@ class Client extends Component
     public function parseEventMessage(\PhpAmqpLib\Message\AMQPMessage $message)
     {
         Yii::info("Got new amqp message: '{$message->body}'", StringHelper::basename(self::class));
-        $channel = $message->delivery_info['channel'];
-        /* @var $channel \PhpAmqpLib\Channel\AMQPChannel */
-        $channel->basic_ack($message->delivery_info['delivery_tag']);
+        $channel = $message->getChannel();
         // Send a message with the string "quit" to cancel the consumer.
         if ($message->body === 'quit') {
-            $channel->basic_cancel($message->delivery_info['consumer_tag']);
+            $channel->basic_cancel($message->getConsumerTag());
         } else {
             try {
                 $array = Json::decode($message->body);
                 $data = ArrayHelper::getValue($array, 'data.event', []);
             } catch (\InvalidArgumentException $e) {
                 Yii::error($e->getMessage(), StringHelper::basename(self::class));
+                $message->ack();
 
                 return;
             }
@@ -842,6 +849,8 @@ class Client extends Component
             $sport_id = intval(ArrayHelper::getValue($data, 'sport_id', 0));
 
             if (!$sport_id) {
+                $message->ack();
+
                 return;
             }
             if (!isset($this->_detailsMapping[$sport_id])) {
@@ -874,6 +883,7 @@ class Client extends Component
                         );
                     } catch (HttpException $e) {
                         Yii::error($e->getMessage(), StringHelper::basename(self::class));
+                        $message->ack();
 
                         return;
                     }
@@ -948,6 +958,7 @@ class Client extends Component
                 'event' => $event
             ]));
         }
+        $message->ack();
     }
 
     /**
