@@ -6,7 +6,6 @@
 
 namespace simialbi\yii2\statscore\models\participant;
 
-
 use yii\base\Model;
 
 class Detail extends Model

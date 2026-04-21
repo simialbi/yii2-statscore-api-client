@@ -6,7 +6,6 @@
 
 namespace simialbi\yii2\statscore\models\sport;
 
-
 use yii\base\Model;
 
 class Incident extends Model

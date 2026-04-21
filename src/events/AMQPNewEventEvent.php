@@ -20,5 +20,5 @@ class AMQPNewEventEvent extends AMQPEvent
     /**
      * @var Event the parsed event message data
      */
-    public $event;
+    public Event $event;
 }

@@ -32,7 +32,7 @@ class AMQPProxyConnection extends AbstractConnection
      * @param AMQPWriter|null $loginResponse
      * @param string $locale
      * @param integer $readTimeout
-     * @param false $keepalive
+     * @param bool $keepalive
      * @param integer $writeTimeout
      * @param integer $heartbeat
      * @param integer $channelRpcTimeout
@@ -52,11 +52,12 @@ class AMQPProxyConnection extends AbstractConnection
         $loginResponse = null,
         $locale = 'en_US',
         $readTimeout = 3,
-        $keepalive = true,
-        $writeTimeout = 3,
-        $heartbeat = 0,
-        $channelRpcTimeout = 0
-    ) {
+        bool $keepalive = true,
+        int $writeTimeout = 3,
+        int $heartbeat = 0,
+        int $channelRpcTimeout = 0
+    )
+    {
         if ($channelRpcTimeout > $readTimeout) {
             throw new \InvalidArgumentException('channel RPC timeout must not be greater than I/O read timeout');
         }
@@ -90,8 +91,14 @@ class AMQPProxyConnection extends AbstractConnection
      * @return AbstractConnection
      * @throws \Exception
      */
-    protected static function try_create_connection($host, $port, $user, $password, $vhost, $options)
-    {
+    protected static function try_create_connection(
+        string $host,
+        string $port,
+        string $user,
+        string $password,
+        string $vhost,
+        array $options
+    ): AbstractConnection|AMQPSocketConnection {
         if (!isset($options['proxyHost']) || !isset($options['proxyPort'])) {
             return new AMQPSocketConnection(
                 $host,

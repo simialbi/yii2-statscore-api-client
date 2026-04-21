@@ -6,7 +6,7 @@
 
 namespace simialbi\yii2\statscore;
 
-use PhpAmqpLib\Exchange\AMQPExchangeType;
+use PhpAmqpLib\Exception\AMQPRuntimeException;
 use simialbi\yii2\statscore\events\AMQPNewEventEvent;
 use simialbi\yii2\statscore\models\Area;
 use simialbi\yii2\statscore\models\Column;
@@ -51,99 +51,109 @@ use yii\web\HttpException;
  */
 class Client extends Component
 {
-    const EVENT_AMQP_NEW_EVENT = 'amqpNewEvent';
+    const string EVENT_AMQP_NEW_EVENT = 'amqpNewEvent';
 
     /**
      * @var string url API endpoint
      */
-    public $baseUrl = 'https://api.softnetsport.com/v2/';
+    public string $baseUrl = 'https://api.softnetsport.com/v2/';
 
     /**
-     * @var integer Client identifier
+     * @var int Client identifier
      */
-    public $clientId;
+    public int $clientId;
 
     /**
      * @var string Secret key
      */
-    public $secretKey;
+    public string $secretKey;
+
+    /**
+     * @var string API Client identifier (defaults to Client identifier)
+     */
+    public string $apiClientId;
+
+    /**
+     * @var string API Secret key (defaults to Secret key)
+     */
+    public string $apiSecretKey;
 
     /**
      * @var string The http proxy's host name
      */
-    public $proxyHost;
+    public string $proxyHost;
 
     /**
-     * @var integer The http proxy's port
+     * @var int The http proxy's port
      */
-    public $proxyPort;
+    public int $proxyPort;
 
     /**
      * @var string AMQP host (defaults to `queue.statscore.com`)
      */
-    public $host = 'queue.statscore.com';
+    public string $host = 'queue.statscore.com';
 
     /**
      * @var string Username (for AMQP usage)
      */
-    public $username;
+    public string $username;
 
     /**
-     * @var integer Port from AMQP server (defaults to 5672)
+     * @var int Port from AMQP server (defaults to 5672)
      */
-    public $port = 5672;
+    public int $port = 5672;
 
     /**
      * @var string Queue name is separate for each customer and will be send by softnetSPORT administrator.
      * By default queue name is the same as your USERNAME.
      */
-    public $queue;
+    public string $queue;
 
     /**
      * @var string Virtual host name. By default it's `statscore`
      */
-    public $virtualHost = 'statscore';
+    public string $virtualHost = 'statscore';
 
     /**
      * @var string Determines language for the output data. If not set, app language will be used
      */
-    public $language;
+    public string $language;
 
     /**
      * @var array Request object configuration
      */
-    public $requestConfig = [];
+    public array $requestConfig = [];
 
     /**
-     * @var boolean|integer Set a duration in seconds before a cache entry will expire. If set, data will
+     * @var bool|int Set a duration in seconds before a cache entry will expire. If set, data will
      * be cached by this duration. If not, there will be no caching.
      */
-    public $cacheDuration = false;
+    public int|bool $cacheDuration = false;
 
     /**
      * @var \yii\httpclient\Client Http client to send and parse requests
      */
-    private $_client;
+    private \yii\httpclient\Client $_client;
 
     /**
      * @var string Valid token generated during authentication process
      */
-    private $_token;
+    private string $_token;
 
     /**
      * @var \PhpAmqpLib\Connection\AbstractConnection AMQP Connection instance
      */
-    private $_connection;
+    private \PhpAmqpLib\Connection\AbstractConnection $_connection;
 
-    private $_detailsMapping = [];
-    private $_statsMapping = [];
-    private $_resultsMapping = [];
+    private array $_detailsMapping = [];
+    private array $_statsMapping = [];
+    private array $_resultsMapping = [];
 
     /**
      * {@inheritdoc}
      * @throws InvalidConfigException
      */
-    public function init()
+    public function init(): void
     {
         parent::init();
 
@@ -152,6 +162,12 @@ class Client extends Component
         }
         if (empty($this->clientId) || empty($this->secretKey)) {
             throw new InvalidConfigException("The 'clientId' and 'secretKey' parameters cannot be empty.");
+        }
+        if (empty($this->apiClientId)) {
+            $this->apiClientId = $this->clientId;
+        }
+        if (empty($this->apiSecretKey)) {
+            $this->apiSecretKey = $this->secretKey;
         }
         if (empty($this->language)) {
             $this->language = (false !== ($pos = strpos(Yii::$app->language, '-')))
@@ -176,11 +192,11 @@ class Client extends Component
      * Get method for private token var
      *
      * @return string Valid token generated during authentication process
-     * @throws HttpException
+     * @throws Exception|HttpException|InvalidConfigException
      */
     public function getToken(): string
     {
-        if ($this->_token) {
+        if (!empty($this->_token)) {
             return $this->_token;
         }
         if (Yii::$app->has('session') && Yii::$app->session->has('statscoreToken')) {
@@ -190,8 +206,8 @@ class Client extends Component
         }
 
         $data = $this->request('oauth', [
-            'client_id' => $this->clientId,
-            'secret_key' => $this->secretKey
+            'client_id' => $this->apiClientId,
+            'secret_key' => $this->apiSecretKey
         ]);
         $this->_token = ArrayHelper::getValue($data, 'token');
 
@@ -205,12 +221,12 @@ class Client extends Component
     /**
      * Returns a list of all available areas (continents and countries)
      *
-     * @param integer|null $parent_area_id
+     * @param int|null $parent_area_id
      *
      * @return Area[]
-     * @throws HttpException
+     * @throws HttpException|InvalidConfigException|Exception
      */
-    public function getAreas(?int $parent_area_id = null)
+    public function getAreas(?int $parent_area_id = null): array
     {
         $data = $this->request('areas', [
             'parent_area_id' => $parent_area_id
@@ -232,7 +248,7 @@ class Client extends Component
      * @param array $requestData additional query data filters
      *
      * @return Competition[]
-     * @throws HttpException
+     * @throws HttpException|InvalidConfigException|Exception
      */
     public function getCompetitions(array $requestData = []): array
     {
@@ -251,10 +267,10 @@ class Client extends Component
     /**
      * Returns data for a single competition
      *
-     * @param integer $competition_id The requested competition identifier
+     * @param int $competition_id The requested competition identifier
      *
      * @return Competition
-     * @throws HttpException
+     * @throws HttpException|InvalidConfigException|Exception
      */
     public function getCompetition(int $competition_id): Competition
     {
@@ -281,7 +297,8 @@ class Client extends Component
      * @param array $requestData additional query data filters
      *
      * @return Competition[]
-     * @throws HttpException
+     *
+     * @throws HttpException|InvalidConfigException|Exception
      */
     public function getEvents(array $requestData = []): array
     {
@@ -300,10 +317,11 @@ class Client extends Component
      * Returns a single event with details including participants, partial results, stats,
      * lineups and important incidents for the event
      *
-     * @param integer $event_id The requested event identifier
+     * @param int $event_id The requested event identifier
      *
      * @return Competition
-     * @throws HttpException
+     *
+     * @throws HttpException|InvalidConfigException|Exception
      */
     public function getEvent(int $event_id): Competition
     {
@@ -315,11 +333,12 @@ class Client extends Component
     /**
      * Returns a list of all available groups that played in the selected stage
      *
-     * @param integer $stage_id Identifier of the stage related to the group.
+     * @param int $stage_id Identifier of the stage related to the group.
      * @param array $requestData additional query data filters
      *
      * @return Competition
-     * @throws HttpException
+     *
+     * @throws HttpException|InvalidConfigException|Exception
      */
     public function getGroups(int $stage_id, array $requestData = []): Competition
     {
@@ -335,7 +354,8 @@ class Client extends Component
      * @param array $requestData additional query data filters
      *
      * @return Incident[]
-     * @throws HttpException
+     *
+     * @throws HttpException|InvalidConfigException|Exception
      */
     public function getIncidents(array $requestData = []): array
     {
@@ -357,7 +377,8 @@ class Client extends Component
      * @param array $requestData additional query data filters
      *
      * @return array
-     * @throws HttpException
+     *
+     * @throws HttpException|InvalidConfigException|Exception
      */
     public function getLiveScore(array $requestData = []): array
     {
@@ -375,11 +396,12 @@ class Client extends Component
     /**
      * Returns a list of all available participants (teams or persons) for all sports
      *
-     * @param integer $sport_id Identifier for the sport. Allows you to filter participants for the selected sport.
+     * @param int $sport_id Identifier for the sport. Allows you to filter participants for the selected sport.
      * @param array $requestData additional query data filters
      *
      * @return Participant[]
-     * @throws HttpException
+     *
+     * @throws HttpException|InvalidConfigException|Exception
      */
     public function getParticipants(int $sport_id, array $requestData = []): array
     {
@@ -406,11 +428,12 @@ class Client extends Component
     /**
      * Returns a list of personnel related to selected team
      *
-     * @param integer $participant_id The requested participant (team) identifier
+     * @param int $participant_id The requested participant (team) identifier
      * @param array $requestData additional query data filters
      *
      * @return Participant[]
-     * @throws HttpException
+     *
+     * @throws HttpException|InvalidConfigException|Exception
      */
     public function getParticipantsSquad(int $participant_id, array $requestData = []): array
     {
@@ -439,7 +462,8 @@ class Client extends Component
      * @param array $requestData additional query data filters
      *
      * @return Round[]
-     * @throws HttpException
+     *
+     * @throws HttpException|InvalidConfigException|Exception
      */
     public function getRounds(array $requestData = []): array
     {
@@ -462,7 +486,8 @@ class Client extends Component
      * @param array $requestData additional query data filters
      *
      * @return Competition[]
-     * @throws HttpException
+     *
+     * @throws HttpException|InvalidConfigException|Exception
      */
     public function getSeasons(array $requestData = []): array
     {
@@ -480,13 +505,14 @@ class Client extends Component
     /**
      * Returns the seasons played in the competitions
      *
-     * @param integer $season_id The requested season identifier
+     * @param int $season_id The requested season identifier
      * @param array $requestData additional query data filters
      *
      * @return Competition
-     * @throws HttpException
+     *
+     * @throws HttpException|InvalidConfigException|Exception
      */
-    public function getSeason($season_id, array $requestData = []): Competition
+    public function getSeason(int $season_id, array $requestData = []): Competition
     {
         $data = $this->request('seasons/' . $season_id, $requestData);
 
@@ -499,7 +525,8 @@ class Client extends Component
      * @param array $requestData additional query data filters
      *
      * @return Sport[]
-     * @throws HttpException
+     *
+     * @throws HttpException|InvalidConfigException|Exception
      */
     public function getSports(array $requestData = []): array
     {
@@ -519,11 +546,12 @@ class Client extends Component
     /**
      * Returns information including statuses, result types, details and statistics available for the requested sport
      *
-     * @param integer $sport_id The requested sport identifier
+     * @param int $sport_id The requested sport identifier
      * @param array $requestData additional query data filters
      *
      * @return Sport
-     * @throws HttpException
+     *
+     * @throws HttpException|InvalidConfigException|Exception
      */
     public function getSport(int $sport_id, array $requestData = []): Sport
     {
@@ -603,11 +631,12 @@ class Client extends Component
     /**
      * Returns a list of all available stages played in a particular season
      *
-     * @param integer $season_id Determines season to which stages belongs
+     * @param int $season_id Determines season to which stages belongs
      * @param array $requestData additional query data filters
      *
      * @return Competition
-     * @throws HttpException
+     *
+     * @throws HttpException|InvalidConfigException|Exception
      */
     public function getStages(int $season_id, array $requestData = []): Competition
     {
@@ -623,7 +652,8 @@ class Client extends Component
      * @param array $requestData additional query data filters
      *
      * @return Standing[]
-     * @throws HttpException
+     *
+     * @throws HttpException|InvalidConfigException|Exception
      */
     public function getStandings(array $requestData = []): array
     {
@@ -643,11 +673,12 @@ class Client extends Component
     /**
      * Returns single standings data
      *
-     * @param integer $standing_id The requested standing identifier
+     * @param int $standing_id The requested standing identifier
      * @param array $requestData additional query data filters
      *
      * @return Standing
-     * @throws HttpException
+     *
+     * @throws HttpException|InvalidConfigException|Exception
      */
     public function getStanding(int $standing_id, array $requestData = []): Standing
     {
@@ -702,11 +733,12 @@ class Client extends Component
     /**
      * Returns a list of all available statuses for events from all sports
      *
-     * @param integer $sport_id Identifier of the sport. Allows the filter status for selected sport
+     * @param int $sport_id Identifier of the sport. Allows the filter status for selected sport
      * @param array $requestData additional query data filters
      *
      * @return Status[]
-     * @throws HttpException
+     *
+     * @throws HttpException|InvalidConfigException|Exception
      */
     public function getStatuses(int $sport_id, array $requestData = []): array
     {
@@ -730,7 +762,8 @@ class Client extends Component
      * @param array $requestData additional query data filters
      *
      * @return Tour[]
-     * @throws HttpException
+     *
+     * @throws HttpException|InvalidConfigException|Exception
      */
     public function getTours(array $requestData = []): array
     {
@@ -750,11 +783,9 @@ class Client extends Component
     /**
      * Start the amqp listener service
      *
-     * @throws InvalidCallException
-     * @throws InvalidConfigException
-     * @throws UnknownClassException
+     * @throws InvalidCallException|InvalidConfigException|UnknownClassException
      */
-    public function startService()
+    public function startService(): void
     {
         if (!(Yii::$app instanceof \yii\console\Application)) {
             throw new InvalidCallException('The AMQP service is only accessible by console applications!');
@@ -769,66 +800,86 @@ class Client extends Component
             $this->queue = $this->username;
         }
 
-        if ($this->proxyHost && $this->proxyPort) {
-            $this->_connection = Yii::createObject('\simialbi\yii2\statscore\amqp\AMQPProxyConnection', [
-                $this->proxyHost,
-                $this->proxyPort,
-                $this->host,
-                $this->port,
-                $this->username,
-                $this->secretKey,
-                $this->virtualHost,
-                false,
-                'AMQPLAIN',
-                null,
-                $this->language
-            ]);
-        } else {
-            $this->_connection = Yii::createObject('\PhpAmqpLib\Connection\AMQPStreamConnection', [
-                $this->host,
-                $this->port,
-                $this->username,
-                $this->secretKey,
-                $this->virtualHost,
-                false,
-                'AMQPLAIN',
-                null,
-                $this->language,
-                3,
-                3,
-                null,
-                true
-            ]);
+        Yii::$app->on(\yii\console\Application::EVENT_AFTER_REQUEST, function () {
+            try {
+                $this->_connection->close();
+            } catch (AMQPRuntimeException|\RuntimeException|\ErrorException) {
+            }
+        });
+
+        while (true) {
+            try {
+                if (!empty($this->proxyHost) && !empty($this->proxyPort)) {
+                    $this->_connection = Yii::createObject('\simialbi\yii2\statscore\amqp\AMQPProxyConnection', [
+                        $this->proxyHost,
+                        $this->proxyPort,
+                        $this->host,
+                        $this->port,
+                        $this->username,
+                        $this->secretKey,
+                        $this->virtualHost,
+                        false,
+                        'AMQPLAIN',
+                        null,
+                        $this->language
+                    ]);
+                } else {
+                    $this->_connection = Yii::createObject('\PhpAmqpLib\Connection\AMQPStreamConnection', [
+                        $this->host,
+                        $this->port,
+                        $this->username,
+                        $this->secretKey,
+                        $this->virtualHost,
+                        false,
+                        'AMQPLAIN',
+                        null,
+                        $this->language,
+                        3,
+                        3,
+                        null,
+                        true
+                    ]);
+                }
+
+                $channel = $this->_connection->channel();
+                /* @var $channel \PhpAmqpLib\Channel\AMQPChannel */
+
+                $channel->basic_consume(
+                    $this->queue,
+                    'consumer' . getmypid(),
+                    false,
+                    false,
+                    false,
+                    false,
+                    [$this, 'parseEventMessage']
+                );
+
+                while ($channel->is_consuming()) {
+                    $channel->wait();
+                }
+            } catch (AMQPRuntimeException|\RuntimeException|\ErrorException $e) {
+                try {
+                    if ($channel !== null) {
+                        $channel->close();
+                    }
+                    if ($this->_connection !== null) {
+                        $this->_connection->close();
+                    }
+                } catch (\ErrorException) {
+                }
+                usleep(1000000);
+            }
         }
-
-        $channel = $this->_connection->channel();
-        /* @var $channel \PhpAmqpLib\Channel\AMQPChannel */
-
-        $channel->basic_consume(
-            $this->queue,
-            'consumer' . getmypid(),
-            false,
-            false,
-            false,
-            false,
-            [$this, 'parseEventMessage']
-        );
-
-        while ($channel->is_open()) {
-            $channel->wait();
-        }
-
-        $channel->close();
-        $this->_connection->close();
     }
 
     /**
      * Parses an amqp message and triggers event
      *
      * @param \PhpAmqpLib\Message\AMQPMessage $message
+     *
      * @throws \Exception
      */
-    public function parseEventMessage(\PhpAmqpLib\Message\AMQPMessage $message)
+    public function parseEventMessage(\PhpAmqpLib\Message\AMQPMessage $message): void
     {
         Yii::info("Got new amqp message: '{$message->body}'", StringHelper::basename(self::class));
         $channel = $message->getChannel();
@@ -968,9 +1019,8 @@ class Client extends Component
      * @param array $data Content data fields.
      *
      * @return array Result data
-     * @throws HttpException
-     * @throws InvalidConfigException
-     * @throws Exception
+     *
+     * @throws HttpException|InvalidConfigException|Exception
      */
     protected function request(string $endpoint, array $data = []): array
     {

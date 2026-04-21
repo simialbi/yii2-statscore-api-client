@@ -6,7 +6,6 @@
 
 namespace simialbi\yii2\statscore\models;
 
-
 use yii\base\Model;
 
 class StandingType extends Model
